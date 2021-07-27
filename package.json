@@ -1,0 +1,27 @@
+{
+	"name": "homebridge-ct200",
+	"version": "1.0.0",
+	"description": "Homebridge plugin to control Bosch CT200 device",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "Domas Kalinauskas",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lynxcs/homebridge-ct200.git"
+	},
+	"license": "ISC",
+	"keywords": [
+		"homebridge-plugin",
+		"homekit",
+		"bosch",
+		"ct200"
+	],
+	"dependencies": {
+		"bosch-xmpp": "^1.2.0"
+	},
+	"engines": {
+		"homebridge": ">=0.2.0"
+	}
+}
