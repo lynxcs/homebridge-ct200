@@ -14,8 +14,7 @@ module.exports = function (homebridge) {
 	homebridge.registerAccessory("homebridge-ct200", "ct200", ct200);
 };
 
-async function connectClient()
-{
+async function connectClient() {
 	await Client.connect();
 }
 
@@ -26,39 +25,48 @@ function ct200(log, config) {
 
 	Serial = config["serial"];
 
-	// Check if config is properly set
-	if (config["serial"] == undefined)
-	{
+	if (config["serial"] == undefined) {
 		Logger.error("Serial not set!");
 		exit();
 	}
-	if (config["password"] == undefined)
-	{
+	if (config["password"] == undefined) {
 		Logger.error("Password not set!");
 		exit();
 	}
-	if (config["access"] == undefined)
-	{
+	if (config["access"] == undefined) {
 		Logger.error("Access key not set!");
 		exit();
 	}
-	if (config["name"] == undefined)
-	{
+	if (config["name"] == undefined) {
 		this.name = "ct200";
 	}
 
-	Client = EasyControlClient({serialNumber: config["serial"], accessKey: config["access"], password: config["password"]});
+	Client = EasyControlClient({ serialNumber: config["serial"], accessKey: config["access"], password: config["password"] });
 	connectClient();
 }
 
-async function tryCommandGet(command)
-{
-	var result;
+function extractJSON(value) {
+	let stringified = JSON.stringify(value);
+	let parsed = JSON.parse(stringified);
+	return parsed;
+}
+
+function checkEndpoint(endpoint, response) {
+	if (endpoint != response["id"]) {
+		Logger.error("Queried endpoint " + endpoint + " but received " + response["id"]);
+		return false
+		// TODO: Decide how to handle this case
+		// Maybe just return null(new Error("msg")); ?
+	}
+	return true
+}
+
+async function tryCommandGet(command) {
+	let result;
 	try {
 		result = await Client.get(command);
 		return result;
-	} catch (e)
-	{
+	} catch (e) {
 		Logger.error("Encountered error during GET: " + command);
 		Logger.error(e.stack || e);
 		await Client.end();
@@ -67,15 +75,13 @@ async function tryCommandGet(command)
 	return result;
 }
 
-async function tryCommandPut(command, message)
-{
-	var result;
+async function tryCommandPut(command, message) {
+	let result;
 	try {
 		result = await Client.put(command, message);
 		return result
-	} catch (e)
-	{
-		Logger.error("Encountered error during PUT: (" + command + "," + message+ ")");
+	} catch (e) {
+		Logger.error("Encountered error during PUT: (" + command + "," + message + ")");
 		Logger.error(e.stack || e);
 		await Client.end();
 		await Client.connect();
@@ -96,14 +102,12 @@ ct200.prototype =
 		// Current temperature
 		boschService.getCharacteristic(Characteristic.CurrentTemperature)
 			.on('get', function (next) {
-				tryCommandGet("/zones/zn1/temperatureActual").then((value) => {
-					var stringified = JSON.stringify(value);
-					var temperature = JSON.parse(stringified)["value"];
-					if (isNaN(temperature))
-					{
-						Logger.error("Temperature reported is NaN! " + temperature);
-						Logger.error(stringified);
-					}
+				const endpoint = "/zones/zn1/temperatureActual"
+				tryCommandGet(endpoint).then((value) => {
+					let response = extractJSON(value);
+					checkEndpoint(endpoint, response);
+
+					let temperature = response["value"];
 					return next(null, temperature);
 				});
 			});
@@ -111,97 +115,122 @@ ct200.prototype =
 		// Target temperature
 		boschService.getCharacteristic(Characteristic.TargetTemperature)
 			.on('get', function (next) {
-				tryCommandGet("/zones/zn1/temperatureHeatingSetpoint").then((value) => {
-					var stringified = JSON.stringify(value);
-					return next(null, JSON.parse(stringified)["value"]);
+				const endpoint = "/zones/zn1/temperatureHeatingSetpoint";
+				tryCommandGet(endpoint).then((value) => {
+					let response = extractJSON(value);
+					checkEndpoint(endpoint, response);
+
+					let targetTemperature = response["value"];
+					return next(null, targetTemperature);
 				});
 			})
 			.on('set', function (wantedTemp, next) {
-				var commandString = '{"value":' + wantedTemp + '}';
-					tryCommandPut("/zones/zn1/manualTemperatureHeating", commandString).then((value) => {
-						var stringified = JSON.stringify(value);
-						Logger.info(stringified);
-					});
-					return next();
+				const commandString = '{"value":' + wantedTemp + '}';
+				const endpoint = "/zones/zn1/manualTemperatureHeating";
+				tryCommandPut(endpoint, commandString).then((value) => {
+					let response = extractJSON(value);
+					if (response["status"] != "ok") {
+						Logger.error("Failed to set temperature!");
+						Logger.error(value);
+					}
+				});
+				return next();
 			});
 
 		// Current heating cooling state
 		boschService.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
 			.on('get', function (next) {
-				tryCommandGet("/zones/zn1/status").then((value) => {
-					// Logger.info(value);
-					var stringified = JSON.stringify(value);
-					var currentStatus = JSON.parse(stringified)["value"];
-					if (currentStatus == "idle")
-					{
+				const endpoint = "/zones/zn1/status";
+				tryCommandGet(endpoint).then((value) => {
+					let response = extractJSON(value);
+					checkEndpoint(endpoint, response);
+
+					let currentStatus = response["value"];
+					if (currentStatus == "idle") {
 						return next(null, Characteristic.CurrentHeatingCoolingState.OFF);
 					}
-					else if (currentStatus == "heat request")
-					{
+					else if (currentStatus == "heat request") {
 						return next(null, Characteristic.CurrentHeatingCoolingState.HEAT);
 					}
-					else
-					{
+					else {
 						Logger.info("Unknown status: " + currentStatus);
-						return next(null, Characteristic.CurrentHeatingCoolingState.COOL);
+						return next(null, Characteristic.CurrentHeatingCoolingState.HEAT);
 					}
 				});
 			});
 
-		// TODO Target heating cooling state
+		// Target heating cooling state
+		var currentState = Characteristic.TargetHeatingCoolingState.AUTO;
 		boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState)
 			.on('get', function (next) {
-				tryCommandGet("/zones/zn1/userMode").then((value) => {
-					var stringified = JSON.stringify(value);
-					var currentMode = JSON.parse(stringified)["value"];
-					if (currentMode == "clock")
-					{
+				const endpoint = "/zones/zn1/userMode";
+				tryCommandGet(endpoint).then((value) => {
+					let response = extractJSON(value);
+					checkEndpoint(endpoint, response);
+
+					let currentMode = response["value"];
+					if (currentMode == "clock") {
+						currentState = Characteristic.TargetHeatingCoolingState.AUTO;
 						return next(null, Characteristic.TargetHeatingCoolingState.AUTO);
 					}
-					else
-					{
+					else {
+						currentState = Characteristic.TargetHeatingCoolingState.HEAT;
 						return next(null, Characteristic.TargetHeatingCoolingState.HEAT);
 					}
 				});
 			})
 			.on('set', function (wantedState, next) {
-				var currentCharacteristic = boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState);
-				var currentState = currentCharacteristic.value;
-				if (wantedState == Characteristic.TargetHeatingCoolingState.COOL)
-				{
-					wantedState = Characteristic.TargetHeatingCoolingState.HEAT;
+				let currentCharacteristic = boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState);
+
+				const OFF = Characteristic.TargetHeatingCoolingState.OFF;
+				const HEAT = Characteristic.TargetHeatingCoolingState.HEAT;
+				const COOL = Characteristic.TargetHeatingCoolingState.COOL;
+				const AUTO = Characteristic.TargetHeatingCoolingState.AUTO;
+
+				if (wantedState == COOL) {
+					wantedState = HEAT;
 					currentCharacteristic.updateValue(wantedState);
 				}
-				else if (wantedState == Characteristic.TargetHeatingCoolingState.OFF)
-				{
-					wantedState = Characteristic.TargetHeatingCoolingState.AUTO;
+				else if (wantedState == OFF) {
+					wantedState = AUTO;
 					currentCharacteristic.updateValue(wantedState);
 				}
 
-				if (wantedState != currentState) {
-					var state;
-					if (wantedState == Characteristic.TargetHeatingCoolingState.AUTO)
-					{
-						state = "clock";
+				if (currentState == wantedState)
+				{
+					return next();
+				}
+
+				let state;
+				if (wantedState == AUTO) {
+					state = "clock";
+				}
+				else {
+					state = "manual";
+				}
+
+				let commandString = '{"value":"' + state + '"}';
+				tryCommandPut("/zones/zn1/userMode", commandString).then((value) => {
+					let response = extractJSON(value);
+					if (response["status"] != "ok") {
+						Logger.error("Failed to set wanted heating mode!");
+						Logger.error(value);
 					}
-					else
-					{
-						state = "manual";
-					}
-					var commandString = '{"value":"' + state + '"}';
-					tryCommandPut("/zones/zn1/userMode", commandString).then((value) => {
-						var stringified = JSON.stringify(value);
-						Logger.info(stringified);
-					});
-					if (wantedState == Characteristic.TargetHeatingCoolingState.AUTO) {
-						tryCommandGet("/zones/zn1/temperatureHeatingSetpoint").then((value) => {
-							var stringified = JSON.stringify(value);
-							Logger.info(stringified);
-							var targetTemp = JSON.parse(stringified)["value"];
+
+					currentState = (state == "manual" ? HEAT : AUTO);
+
+					if (state == "clock") {
+						// Change temp. to match setpoint temperature
+						const endpoint = "/zones/zn1/temperatureHeatingSetpoint";
+						tryCommandGet(endpoint).then((value) => {
+							let response = extractJSON(value);
+							checkEndpoint(endpoint, response);
+
+							let targetTemp = response["value"];
 							boschService.getCharacteristic(Characteristic.TargetTemperature).updateValue(targetTemp);
 						});
 					}
-				}
+				});
 
 				return next();
 			});
@@ -209,81 +238,92 @@ ct200.prototype =
 		// Temperature display units
 		boschService.getCharacteristic(Characteristic.TemperatureDisplayUnits)
 			.on('get', function (next) {
-				tryCommandGet("/gateway/localisation").then((value) => {
-					var stringified = JSON.stringify(value);
-					var currentUnit = JSON.parse(stringified)["value"];
-					if (currentUnit == "Celsius")
-					{
+				const endpoint = "/gateway/localisation"
+				tryCommandGet(endpoint).then((value) => {
+					let response = extractJSON(value);
+					checkEndpoint(endpoint, response);
+
+					let currentUnit = response["value"];
+					if (currentUnit == "Celsius") {
 						return next(null, Characteristic.TemperatureDisplayUnits.CELSIUS);
 					}
-					else
-					{
+					else {
 						return next(null, Characteristic.TemperatureDisplayUnits.FAHRENHEIT);
 					}
 				});
 			})
+
 			.on('set', function (wantedUnits, next) {
-				var units;
-				if (wantedUnits == Characteristic.TemperatureDisplayUnits.CELSIUS)
-				{
+				let units;
+				if (wantedUnits == Characteristic.TemperatureDisplayUnits.CELSIUS) {
 					units = "Celsius";
 				}
-				else
-				{
+				else {
 					units = "Fahrenheit";
 				}
-				var commandString = '{"value":"' + units + '"}';
+				let commandString = '{"value":"' + units + '"}';
 				tryCommandPut("/gateway/localisation", commandString).then((value) => {
-					var stringified = JSON.stringify(value);
-					Logger.info("Localisation PUT:" + stringified);
-					return next();
+					let response = extractJSON(value);
+					if (response["status"] != "ok") {
+						Logger.error("Failed to set temperature display units!");
+						Logger.error(value);
+					}
 				});
+				return next();
 			});
 
 		// Current relative humidity
 		boschService.getCharacteristic(Characteristic.CurrentRelativeHumidity)
 			.on('get', function (next) {
-				tryCommandGet("/system/sensors/humidity/indoor_h1").then((value) => {
-					var stringified = JSON.stringify(value);
-					var currentHumidity = JSON.parse(stringified)["value"];
+				const endpoint = "/system/sensors/humidity/indoor_h1"
+				tryCommandGet(endpoint).then((value) => {
+					let response = extractJSON(value);
+					checkEndpoint(endpoint, response);
+
+					let currentHumidity = response["value"];
 					return next(null, currentHumidity);
 				});
 			});
 
-		// TODO Target relative humidity (pretty sure this isn't available in bosch easyControl)
+		// TODO: Target relative humidity (pretty sure this isn't available in bosch easyControl)
 
 		// Away mode switch
 		var awayService = new Service.Switch("Away", "away");
 		awayService.getCharacteristic(Characteristic.On)
 			.on('get', function (next) {
-				tryCommandGet("/system/awayMode/enabled").then((value) => {
-					var stringified = JSON.stringify(value);
-					var enabledAway = JSON.parse(stringified)["value"];
-					if (enabledAway == "false")
-					{
+				const endpoint = "/system/awayMode/enabled"
+				tryCommandGet(endpoint).then((value) => {
+					let response = extractJSON(value);
+					checkEndpoint(endpoint, response);
+
+					let enabledAway = response["value"];
+					if (enabledAway == "false") {
 						return next(null, 0);
 					}
-					else
-					{
+					else {
 						return next(null, 1);
 					}
 				});
 			})
 			.on('set', function (wantedState, next) {
-				var commandString;
-				if (wantedState == 0)
-				{
+				let commandString;
+				if (wantedState == 0) {
 					commandString = '{"value":"false"}';
 				}
-				else
-				{
+				else {
 					commandString = '{"value":"true"}';
 				}
-				tryCommandPut("/system/awayMode/enabled", commandString).then((value) =>{
-					var stringified = JSON.stringify(value);
-					Logger.info("Away PUT:" + stringified);
-					return next();
+
+				tryCommandPut("/system/awayMode/enabled", commandString).then((value) => {
+					let response = extractJSON(response);
+					if (response["status"] != "ok")
+					{
+						Logger.error("Failed to set away mode status!");
+						Logger.error(value);
+					}
+
 				});
+				return next();
 			});
 
 		// Advance schedule button
@@ -293,11 +333,20 @@ ct200.prototype =
 				return next(null, 0);
 			})
 			.on('set', function (wantedState, next) {
-				if (wantedState == 1)
-				{
-					tryCommandGet("/zones/zn1/nextSetpoint").then((value) => {
-						var stringified = JSON.stringify(value);
-						var nextSetpointTemp = JSON.parse(stringified)["value"];
+				if (wantedState == 1) {
+
+					// Manual mode doesn't allow for setpoint advancement, so switch to auto
+					if (currentState == Characteristic.TargetHeatingCoolingState.HEAT)
+					{
+						boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState).setValue(Characteristic.TargetHeatingCoolingState.AUTO);
+					}
+
+					const endpoint = "/zones/zn1/nextSetpoint";
+					tryCommandGet(endpoint).then((value) => {
+						let response = extractJSON(value);
+						checkEndpoint(endpoint, response);
+
+						let nextSetpointTemp = response["value"];
 						boschService.getCharacteristic(Characteristic.TargetTemperature).setValue(nextSetpointTemp);
 						advanceService.getCharacteristic(Characteristic.On).setValue(0);
 					});
