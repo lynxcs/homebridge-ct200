@@ -15,7 +15,7 @@ module.exports = function (homebridge) {
 };
 
 async function connectClient() {
-	await Client.connect();
+	await Client.connect().catch(error => console.log("Failed to connect to client: " + error));
 }
 
 function ct200(log, config) {
@@ -69,8 +69,6 @@ async function tryCommandGet(command) {
 	} catch (e) {
 		Logger.error("Encountered error during GET: " + command);
 		Logger.error(e.stack || e);
-		await Client.end();
-		await Client.connect();
 	}
 	return result;
 }
@@ -83,8 +81,6 @@ async function tryCommandPut(command, message) {
 	} catch (e) {
 		Logger.error("Encountered error during PUT: (" + command + "," + message + ")");
 		Logger.error(e.stack || e);
-		await Client.end();
-		await Client.connect();
 	}
 }
 
@@ -103,26 +99,30 @@ ct200.prototype =
 		boschService.getCharacteristic(Characteristic.CurrentTemperature)
 			.on('get', function (next) {
 				const endpoint = "/zones/zn1/temperatureActual"
+				const thischar = boschService.getCharacteristic(Characteristic.CurrentTemperature);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					checkEndpoint(endpoint, response);
 
 					let temperature = response["value"];
-					return next(null, temperature);
+					thischar.updateValue(temperature);
 				});
+				return next(null, thischar.value);
 			});
 
 		// Target temperature
 		boschService.getCharacteristic(Characteristic.TargetTemperature)
 			.on('get', function (next) {
 				const endpoint = "/zones/zn1/temperatureHeatingSetpoint";
+				const thischar = boschService.getCharacteristic(Characteristic.TargetTemperature);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					checkEndpoint(endpoint, response);
 
 					let targetTemperature = response["value"];
-					return next(null, targetTemperature);
+					thischar.updateValue(targetTemperature);
 				});
+				return next(null, thischar.value);
 			})
 			.on('set', function (wantedTemp, next) {
 				const commandString = '{"value":' + wantedTemp + '}';
@@ -141,22 +141,29 @@ ct200.prototype =
 		boschService.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
 			.on('get', function (next) {
 				const endpoint = "/zones/zn1/status";
+				const thischar = boschService.getCharacteristic(Characteristic.CurrentHeatingCoolingState);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					checkEndpoint(endpoint, response);
 
 					let currentStatus = response["value"];
 					if (currentStatus == "idle") {
-						return next(null, Characteristic.CurrentHeatingCoolingState.OFF);
+						thischar.updateValue(Characteristic.CurrentHeatingCoolingState.OFF);
 					}
 					else if (currentStatus == "heat request") {
-						return next(null, Characteristic.CurrentHeatingCoolingState.HEAT);
+						thischar.updateValue(Characteristic.CurrentHeatingCoolingState.HEAT);
 					}
 					else {
 						Logger.info("Unknown status: " + currentStatus);
-						return next(null, Characteristic.CurrentHeatingCoolingState.HEAT);
+						thischar.updateValue(Characteristic.CurrentHeatingCoolingState.HEAT);
 					}
 				});
+				return next(null, thischar.value);
+			})
+			.setProps({ // Set props to only allow OFF or HEAT
+				minValue: 0,
+				maxValue: 1,
+				minStep: 1
 			});
 
 		// Target heating cooling state
@@ -164,6 +171,7 @@ ct200.prototype =
 		boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState)
 			.on('get', function (next) {
 				const endpoint = "/zones/zn1/userMode";
+				const thischar = boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					checkEndpoint(endpoint, response);
@@ -171,13 +179,14 @@ ct200.prototype =
 					let currentMode = response["value"];
 					if (currentMode == "clock") {
 						currentState = Characteristic.TargetHeatingCoolingState.AUTO;
-						return next(null, Characteristic.TargetHeatingCoolingState.AUTO);
 					}
 					else {
 						currentState = Characteristic.TargetHeatingCoolingState.HEAT;
-						return next(null, Characteristic.TargetHeatingCoolingState.HEAT);
 					}
+					thischar.updateValue(currentState);
 				});
+
+				return next(null, currentState);
 			})
 			.on('set', function (wantedState, next) {
 				let currentCharacteristic = boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState);
@@ -218,6 +227,7 @@ ct200.prototype =
 					}
 
 					currentState = (state == "manual" ? HEAT : AUTO);
+					currentCharacteristic.updateValue(currentState);
 
 					if (state == "clock") {
 						// Change temp. to match setpoint temperature
@@ -239,20 +249,21 @@ ct200.prototype =
 		boschService.getCharacteristic(Characteristic.TemperatureDisplayUnits)
 			.on('get', function (next) {
 				const endpoint = "/gateway/localisation"
+				const thischar = boschService.getCharacteristic(Characteristic.TemperatureDisplayUnits);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					checkEndpoint(endpoint, response);
 
 					let currentUnit = response["value"];
 					if (currentUnit == "Celsius") {
-						return next(null, Characteristic.TemperatureDisplayUnits.CELSIUS);
+						thischar.updateValue(Characteristic.TemperatureDisplayUnits.CELSIUS);
 					}
 					else {
-						return next(null, Characteristic.TemperatureDisplayUnits.FAHRENHEIT);
+						thischar.updateValue(Characteristic.TemperatureDisplayUnits.FAHRENHEIT);
 					}
 				});
+				return next(null, thischar.value);
 			})
-
 			.on('set', function (wantedUnits, next) {
 				let units;
 				if (wantedUnits == Characteristic.TemperatureDisplayUnits.CELSIUS) {
@@ -276,13 +287,15 @@ ct200.prototype =
 		boschService.getCharacteristic(Characteristic.CurrentRelativeHumidity)
 			.on('get', function (next) {
 				const endpoint = "/system/sensors/humidity/indoor_h1"
+				const thischar = boschService.getCharacteristic(Characteristic.CurrentRelativeHumidity);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					checkEndpoint(endpoint, response);
 
 					let currentHumidity = response["value"];
-					return next(null, currentHumidity);
+					thischar.updateValue(currentHumidity);
 				});
+				return next(null, thischar.value);
 			});
 
 		// TODO: Target relative humidity (pretty sure this isn't available in bosch easyControl)
@@ -292,18 +305,20 @@ ct200.prototype =
 		awayService.getCharacteristic(Characteristic.On)
 			.on('get', function (next) {
 				const endpoint = "/system/awayMode/enabled"
+				const thischar = boschService.getCharacteristic(Characteristic.CurrentRelativeHumidity);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					checkEndpoint(endpoint, response);
 
 					let enabledAway = response["value"];
 					if (enabledAway == "false") {
-						return next(null, 0);
+						thischar.updateValue(0);
 					}
 					else {
-						return next(null, 1);
+						thischar.updateValue(1);
 					}
 				});
+				return next(null, thischar.value);
 			})
 			.on('set', function (wantedState, next) {
 				let commandString;
