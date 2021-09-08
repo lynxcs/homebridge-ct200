@@ -102,10 +102,10 @@ ct200.prototype =
 				const thischar = boschService.getCharacteristic(Characteristic.CurrentTemperature);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
-					checkEndpoint(endpoint, response);
-
-					let temperature = response["value"];
-					thischar.updateValue(temperature);
+					if (checkEndpoint(endpoint, response)) {
+						let temperature = response["value"];
+						thischar.updateValue(temperature);
+					}
 				});
 				return next(null, thischar.value);
 			});
@@ -117,10 +117,10 @@ ct200.prototype =
 				const thischar = boschService.getCharacteristic(Characteristic.TargetTemperature);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
-					checkEndpoint(endpoint, response);
-
-					let targetTemperature = response["value"];
-					thischar.updateValue(targetTemperature);
+					if (checkEndpoint(endpoint, response)) {
+						let targetTemperature = response["value"];
+						thischar.updateValue(targetTemperature);
+					}
 				});
 				return next(null, thischar.value);
 			})
@@ -144,27 +144,22 @@ ct200.prototype =
 				const thischar = boschService.getCharacteristic(Characteristic.CurrentHeatingCoolingState);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
-					checkEndpoint(endpoint, response);
-
-					let currentStatus = response["value"];
-					if (currentStatus == "idle") {
-						thischar.updateValue(Characteristic.CurrentHeatingCoolingState.OFF);
-					}
-					else if (currentStatus == "heat request") {
-						thischar.updateValue(Characteristic.CurrentHeatingCoolingState.HEAT);
-					}
-					else {
-						Logger.info("Unknown status: " + currentStatus);
-						thischar.updateValue(Characteristic.CurrentHeatingCoolingState.HEAT);
+					if (checkEndpoint(endpoint, response)) {
+						let currentStatus = response["value"];
+						if (currentStatus == "idle") {
+							thischar.updateValue(Characteristic.CurrentHeatingCoolingState.OFF);
+						}
+						else if (currentStatus == "heat request") {
+							thischar.updateValue(Characteristic.CurrentHeatingCoolingState.HEAT);
+						}
+						else {
+							Logger.info("Unknown status: " + currentStatus);
+							thischar.updateValue(Characteristic.CurrentHeatingCoolingState.HEAT);
+						}
 					}
 				});
 				return next(null, thischar.value);
 			})
-			.setProps({ // Set props to only allow OFF or HEAT
-				minValue: 0,
-				maxValue: 1,
-				minStep: 1
-			});
 
 		// Target heating cooling state
 		var currentState = Characteristic.TargetHeatingCoolingState.AUTO;
@@ -174,21 +169,22 @@ ct200.prototype =
 				const thischar = boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
-					checkEndpoint(endpoint, response);
-
-					let currentMode = response["value"];
-					if (currentMode == "clock") {
-						currentState = Characteristic.TargetHeatingCoolingState.AUTO;
+					if (checkEndpoint(endpoint, response)) {
+						let currentMode = response["value"];
+						if (currentMode == "clock") {
+							currentState = Characteristic.TargetHeatingCoolingState.AUTO;
+						}
+						else {
+							currentState = Characteristic.TargetHeatingCoolingState.HEAT;
+						}
+						thischar.updateValue(currentState);
 					}
-					else {
-						currentState = Characteristic.TargetHeatingCoolingState.HEAT;
-					}
-					thischar.updateValue(currentState);
 				});
 
 				return next(null, currentState);
 			})
 			.on('set', function (wantedState, next) {
+				// TODO: Simplify this, since now only HEAT or AUTO are the only allowed values
 				let currentCharacteristic = boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState);
 
 				const OFF = Characteristic.TargetHeatingCoolingState.OFF;
@@ -234,16 +230,22 @@ ct200.prototype =
 						const endpoint = "/zones/zn1/temperatureHeatingSetpoint";
 						tryCommandGet(endpoint).then((value) => {
 							let response = extractJSON(value);
-							checkEndpoint(endpoint, response);
-
-							let targetTemp = response["value"];
-							boschService.getCharacteristic(Characteristic.TargetTemperature).updateValue(targetTemp);
+							if (checkEndpoint(endpoint, response)) {
+								let targetTemp = response["value"];
+								boschService.getCharacteristic(Characteristic.TargetTemperature).updateValue(targetTemp);
+							}
 						});
 					}
 				});
 
 				return next();
+			})
+			.setProps({
+				minValue: 1,
+				maxValue: 3,
+				validValues: [1, 3]
 			});
+
 
 		// Temperature display units
 		boschService.getCharacteristic(Characteristic.TemperatureDisplayUnits)
@@ -252,14 +254,14 @@ ct200.prototype =
 				const thischar = boschService.getCharacteristic(Characteristic.TemperatureDisplayUnits);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
-					checkEndpoint(endpoint, response);
-
-					let currentUnit = response["value"];
-					if (currentUnit == "Celsius") {
-						thischar.updateValue(Characteristic.TemperatureDisplayUnits.CELSIUS);
-					}
-					else {
-						thischar.updateValue(Characteristic.TemperatureDisplayUnits.FAHRENHEIT);
+					if (checkEndpoint(endpoint, response)) {
+						let currentUnit = response["value"];
+						if (currentUnit == "Celsius") {
+							thischar.updateValue(Characteristic.TemperatureDisplayUnits.CELSIUS);
+						}
+						else {
+							thischar.updateValue(Characteristic.TemperatureDisplayUnits.FAHRENHEIT);
+						}
 					}
 				});
 				return next(null, thischar.value);
@@ -290,10 +292,10 @@ ct200.prototype =
 				const thischar = boschService.getCharacteristic(Characteristic.CurrentRelativeHumidity);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
-					checkEndpoint(endpoint, response);
-
-					let currentHumidity = response["value"];
-					thischar.updateValue(currentHumidity);
+					if (checkEndpoint(endpoint, response)) {
+						let currentHumidity = response["value"];
+						thischar.updateValue(currentHumidity);
+					}
 				});
 				return next(null, thischar.value);
 			});
@@ -308,14 +310,14 @@ ct200.prototype =
 				const thischar = boschService.getCharacteristic(Characteristic.CurrentRelativeHumidity);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
-					checkEndpoint(endpoint, response);
-
-					let enabledAway = response["value"];
-					if (enabledAway == "false") {
-						thischar.updateValue(0);
-					}
-					else {
-						thischar.updateValue(1);
+					if (checkEndpoint(endpoint, response)) {
+						let enabledAway = response["value"];
+						if (enabledAway == "false") {
+							thischar.updateValue(0);
+						}
+						else {
+							thischar.updateValue(1);
+						}
 					}
 				});
 				return next(null, thischar.value);
@@ -359,10 +361,10 @@ ct200.prototype =
 					const endpoint = "/zones/zn1/nextSetpoint";
 					tryCommandGet(endpoint).then((value) => {
 						let response = extractJSON(value);
-						checkEndpoint(endpoint, response);
-
-						let nextSetpointTemp = response["value"];
-						boschService.getCharacteristic(Characteristic.TargetTemperature).setValue(nextSetpointTemp);
+						if (checkEndpoint(endpoint, response)) {
+							let nextSetpointTemp = response["value"];
+							boschService.getCharacteristic(Characteristic.TargetTemperature).setValue(nextSetpointTemp);
+						}
 						advanceService.getCharacteristic(Characteristic.On).setValue(0);
 					});
 				}
