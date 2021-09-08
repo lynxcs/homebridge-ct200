@@ -28,7 +28,7 @@ $ sudo npm -g i homebridge-ct200
         "name": "CT200",
         "access": "ACCESS KEY",
         "serial": "SERIAL",
-        "password": "PASSWORD",
+        "password": "PASSWORD"
     }
 ]
 ```
