@@ -29,11 +29,13 @@ $ sudo npm -g i homebridge-ct200
         "access": "ACCESS KEY",
         "serial": "SERIAL",
         "password": "PASSWORD",
-        "zone": 1 //optional
+        "zone": 1
     }
 ]
 ```
-where `name` is the name that shows up in homekit; `access` is the access key, `serial` is the serial key, both of which can be found in the bosch EasyControl app; `password` is the password used to login (**Can't be longer than 8 characters**, this is a limitation of the bosch-xmpp library, and might be fixed later)
-`zone` can be use to change which device to show in Homekit in case, you have more devices. **Can't be run more these accessories in the same time, this is TODO for now**.
+where `name` is the name that shows up in homekit; `access` is the access key, `serial` is the serial key, both of which can be found in the bosch EasyControl app; `password` is the password used to login (**Can't be longer than 8 characters**, this is a limitation of the bosch-xmpp library, and might be fixed later).
+
+`zone` is Optional and can be use to change which device to read from in Homekit in case you have more devices. **Can't be run more these CT200 accessories in the same time, this is TODO for now**.
+
 #### Getting help
 If you need help troubleshooting, create an issue and I'll try to help you fix it.
