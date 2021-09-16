@@ -5,6 +5,7 @@ var Service, Characteristic;
 var Serial;
 var Logger;
 var Client;
+var Zone;
 
 const { EasyControlClient } = require('bosch-xmpp');
 
@@ -39,6 +40,11 @@ function ct200(log, config) {
 	}
 	if (config["name"] == undefined) {
 		this.name = "ct200";
+	}
+	if (config["zone"] == undefined) {
+		Zone = 1;
+	} else {
+		Zone = config["zone"];
 	}
 
 	Client = EasyControlClient({ serialNumber: config["serial"], accessKey: config["access"], password: config["password"] });
