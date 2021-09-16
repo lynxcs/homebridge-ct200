@@ -104,7 +104,7 @@ ct200.prototype =
 		// Current temperature
 		boschService.getCharacteristic(Characteristic.CurrentTemperature)
 			.on('get', function (next) {
-				const endpoint = "/zones/zn" + Zone + "/temperatureActual"
+				const endpoint = "/zones/zn" + Zone.toString() + "/temperatureActual"
 				const thischar = boschService.getCharacteristic(Characteristic.CurrentTemperature);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
