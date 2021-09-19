@@ -42,9 +42,9 @@ function ct200(log, config) {
 		this.name = "ct200";
 	}
 	if (config["zone"] == undefined) {
-		Zone = 1;
+		Zone = "1";
 	} else {
-		Zone = config["zone"];
+		Zone = config["zone"].toString();
 	}
 
 	Client = EasyControlClient({ serialNumber: config["serial"], accessKey: config["access"], password: config["password"] });
@@ -104,7 +104,7 @@ ct200.prototype =
 		// Current temperature
 		boschService.getCharacteristic(Characteristic.CurrentTemperature)
 			.on('get', function (next) {
-				const endpoint = "/zones/zn" + Zone.toString() + "/temperatureActual"
+				const endpoint = "/zones/zn" + Zone + "/temperatureActual"
 				const thischar = boschService.getCharacteristic(Characteristic.CurrentTemperature);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
@@ -119,7 +119,7 @@ ct200.prototype =
 		// Target temperature
 		boschService.getCharacteristic(Characteristic.TargetTemperature)
 			.on('get', function (next) {
-				const endpoint = "/zones/zn" + Zone.toString() + "/temperatureHeatingSetpoint";
+				const endpoint = "/zones/zn" + Zone + "/temperatureHeatingSetpoint";
 				const thischar = boschService.getCharacteristic(Characteristic.TargetTemperature);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
@@ -132,7 +132,7 @@ ct200.prototype =
 			})
 			.on('set', function (wantedTemp, next) {
 				const commandString = '{"value":' + wantedTemp + '}';
-				const endpoint = "/zones/zn" + Zone.toString() + "/manualTemperatureHeating";
+				const endpoint = "/zones/zn" + Zone + "/manualTemperatureHeating";
 				tryCommandPut(endpoint, commandString).then((value) => {
 					let response = extractJSON(value);
 					if (response["status"] != "ok") {
@@ -146,7 +146,7 @@ ct200.prototype =
 		// Current heating cooling state
 		boschService.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
 			.on('get', function (next) {
-				const endpoint = "/zones/zn" + Zone.toString() + "/status";
+				const endpoint = "/zones/zn" + Zone + "/status";
 				const thischar = boschService.getCharacteristic(Characteristic.CurrentHeatingCoolingState);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
@@ -171,7 +171,7 @@ ct200.prototype =
 		var currentState = Characteristic.TargetHeatingCoolingState.AUTO;
 		boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState)
 			.on('get', function (next) {
-				const endpoint = "/zones/zn" + Zone.toString() + "/userMode";
+				const endpoint = "/zones/zn" + Zone + "/userMode";
 				const thischar = boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
@@ -221,7 +221,7 @@ ct200.prototype =
 				}
 
 				let commandString = '{"value":"' + state + '"}';
-				tryCommandPut("/zones/zn" + Zone.toString() + "/userMode", commandString).then((value) => {
+				tryCommandPut("/zones/zn" + Zone + "/userMode", commandString).then((value) => {
 					let response = extractJSON(value);
 					if (response["status"] != "ok") {
 						Logger.error("Failed to set wanted heating mode!");
@@ -233,7 +233,7 @@ ct200.prototype =
 
 					if (state == "clock") {
 						// Change temp. to match setpoint temperature
-						const endpoint = "/zones/zn" + Zone.toString() + "/temperatureHeatingSetpoint";
+						const endpoint = "/zones/zn" + Zone + "/temperatureHeatingSetpoint";
 						tryCommandGet(endpoint).then((value) => {
 							let response = extractJSON(value);
 							if (checkEndpoint(endpoint, response)) {
@@ -364,7 +364,7 @@ ct200.prototype =
 						boschService.getCharacteristic(Characteristic.TargetHeatingCoolingState).setValue(Characteristic.TargetHeatingCoolingState.AUTO);
 					}
 
-					const endpoint = "/zones/zn" + Zone.toString() + "/nextSetpoint";
+					const endpoint = "/zones/zn" + Zone + "/nextSetpoint";
 					tryCommandGet(endpoint).then((value) => {
 						let response = extractJSON(value);
 						if (checkEndpoint(endpoint, response)) {
