@@ -37,5 +37,6 @@ where `name` is the name that shows up in homekit; `access` is the access key, `
 
 `zone` is Optional and can be use to change which device to read from in Homekit in case you have more devices. **Can't be run more these CT200 accessories in Homebridge in the same time, this is TODO for now**.
 
+**"access" and "serial" must be entered without spaces (e.g "asdasdasd" not "asd asd asd")**
 #### Getting help
 If you need help troubleshooting, create an issue and I'll try to help you fix it.
