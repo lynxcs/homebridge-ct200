@@ -20,7 +20,7 @@ To install homebridge ct200:
 ```
 $ sudo npm -g i homebridge-ct200
 ```
-- Edit the the `config.json` and add the `Alarm` accessory e.g:
+- Edit the the `config.json` and add the `ct200` accessory e.g:
 ```
 "accessories": [
     {
