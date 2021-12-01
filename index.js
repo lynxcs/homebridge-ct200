@@ -52,18 +52,15 @@ function ct200(log, config) {
 }
 
 function extractJSON(value) {
-	let stringified = JSON.stringify(value);
-	let parsed = JSON.parse(stringified);
-	return parsed;
+	return JSON.parse(JSON.stringify(value));
 }
 
 function checkEndpoint(endpoint, response) {
 	if (endpoint != response["id"]) {
 		Logger.error("Queried endpoint " + endpoint + " but received " + response["id"]);
 		return false
-		// TODO: Decide how to handle this case
-		// Maybe just return null(new Error("msg")); ?
 	}
+
 	return true
 }
 
@@ -306,14 +303,12 @@ ct200.prototype =
 				return next(null, thischar.value);
 			});
 
-		// TODO: Target relative humidity (pretty sure this isn't available in bosch easyControl)
-
 		// Away mode switch
 		var awayService = new Service.Switch("Away", "away");
 		awayService.getCharacteristic(Characteristic.On)
 			.on('get', function (next) {
 				const endpoint = "/system/awayMode/enabled"
-				const thischar = boschService.getCharacteristic(Characteristic.CurrentRelativeHumidity);
+				const thischar = awayService.getCharacteristic(Characteristic.On);
 				tryCommandGet(endpoint).then((value) => {
 					let response = extractJSON(value);
 					if (checkEndpoint(endpoint, response)) {
