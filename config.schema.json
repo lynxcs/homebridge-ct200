@@ -27,7 +27,6 @@
             "password": {
                 "title": "Password",
                 "type": "string",
-                "pattern": "^[0-9]*$",
                 "description": "Bosch account password",
                 "default": "",
                 "required": true
