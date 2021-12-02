@@ -29,30 +29,30 @@ export class Thermostat {
         this.id = this.accessory.context.id;
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature) // Global
-        .onGet(this.getCurrentTemp.bind(this))
+            .onGet(this.getCurrentTemp.bind(this));
 
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature) // Per device
-        .onGet(this.getTargetTemp.bind(this))
-        .onSet(this.setTargetTemp.bind(this));
+            .onGet(this.getTargetTemp.bind(this))
+            .onSet(this.setTargetTemp.bind(this));
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState) // Global
-        .onGet(this.getCurrentState.bind(this));
+            .onGet(this.getCurrentState.bind(this));
 
         this.service.getCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState) // Per device
-        .onGet(this.getTargetState.bind(this))
-        .onSet(this.setTargetState.bind(this))
-        .setProps({
-            minValue: 1,
-            maxValue: 3,
-            validValues: [1, 3]
-        });
+            .onGet(this.getTargetState.bind(this))
+            .onSet(this.setTargetState.bind(this))
+            .setProps({
+                minValue: 1,
+                maxValue: 3,
+                validValues: [1, 3],
+            });
 
         this.service.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits) // Global
-        .onGet(this.getDisplayUnits.bind(this))
-        .onSet(this.setDisplayUnits.bind(this));
+            .onGet(this.getDisplayUnits.bind(this))
+            .onSet(this.setDisplayUnits.bind(this));
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
-        .onGet(this.getRelativeHumidity.bind(this));
+            .onGet(this.getRelativeHumidity.bind(this));
 
     }
 
@@ -61,7 +61,7 @@ export class Thermostat {
     }
 
     async getTargetTemp(): Promise<CharacteristicValue> {
-        globalClient.get("/zones/zn" + this.id + "/temperatureHeatingSetpoint").then((response) => {
+        globalClient.get('/zones/zn' + this.id + '/temperatureHeatingSetpoint').then((response) => {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
         return globalState.zones[this.id].wantedTemp;
@@ -69,9 +69,9 @@ export class Thermostat {
 
     async setTargetTemp(value: CharacteristicValue) {
         const command: string = '{"value":' + value + '}';
-        globalClient.put("/zones/zn" + this.id + "/manualTemperatureHeating", command).then((response) => {
-            if (JSON.parse(JSON.stringify(response))['status'] != 'ok') {
-                this.platform.log.error("Failed to set temperature!");
+        globalClient.put('/zones/zn' + this.id + '/manualTemperatureHeating', command).then((response) => {
+            if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
+                this.platform.log.error('Failed to set temperature!');
             }
         });
     }
@@ -81,7 +81,7 @@ export class Thermostat {
     }
 
     async getTargetState(): Promise<CharacteristicValue> {
-        globalClient.get("/zones/zn" + this.id + "/userMode").then((response) => {
+        globalClient.get('/zones/zn' + this.id + '/userMode').then((response) => {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
 
@@ -89,17 +89,16 @@ export class Thermostat {
     }
 
     async setTargetState(value: CharacteristicValue) {
-        const AUTO = 1;
         let commandString = '{"value":"';
-        if (value == AUTO) {
+        if (value as number === 1) {
             commandString += 'clock"}';
         } else {
             commandString += 'manual"}';
         }
 
-        globalClient.put("/zones/zn" + this.id + "/userMode", commandString).then((response) => {
-            if (JSON.parse(JSON.stringify(response))['status'] != 'ok') {
-                this.platform.log.error("Failed to set temperature!");
+        globalClient.put('/zones/zn' + this.id + '/userMode', commandString).then((response) => {
+            if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
+                this.platform.log.error('Failed to set temperature!');
             }
         });
     }
@@ -110,7 +109,7 @@ export class Thermostat {
     }
 
     async setDisplayUnits(value: CharacteristicValue) {
-        this.platform.log.warn("Setting temperature units in Home doesn't work! Change in bosch app!");
+        this.platform.log.warn('Setting temperature units in Home doesn\'t work! Change in bosch app!');
     }
 
     // This is a global property

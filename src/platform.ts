@@ -54,7 +54,7 @@ export function processResponse(response) {
     globalLogger.debug('\n');
 
     switch (response['id']) {
-        case "/zone/list": {
+        case '/zone/list': {
             const responseZones: { string: ResponseZone[] } = response['value'];
             for (const zone of responseZones.string) {
                 globalState.zones[zone.id].currentTemp = zone.temp;
@@ -75,11 +75,10 @@ export function processResponse(response) {
             break;
         }
 
-        case "/gateway/localisation": {
+        case '/gateway/localisation': {
             if (response['value'] === 'Celsius') {
                 globalState.localization = 0;
-            }
-            else {
+            } else {
                 globalState.localization = 1;
             }
 
@@ -93,7 +92,7 @@ export function processResponse(response) {
         }
 
         // TODO Figure out if more than one humidity sensor is present (for each zone?)
-        case "/system/sensors/humidity/indoor_h1": {
+        case '/system/sensors/humidity/indoor_h1': {
             globalState.humidity = response['value'];
             for (const zone in globalState.zones) {
                 const thermostat = globalState.zones[zone].accessory.getService(globalPlatform.Service.Thermostat);
@@ -104,7 +103,7 @@ export function processResponse(response) {
             break;
         }
 
-        case "/system/awayMode/enabled": {
+        case '/system/awayMode/enabled': {
             if (response['value'] === 'false') {
                 globalState.away.state = false;
             } else {
@@ -146,7 +145,7 @@ export function processResponse(response) {
 
 async function connectAPI(serialNumber: number, accessKey: string, password: string) {
     globalClient = EasyControlClient({ serialNumber: serialNumber, accessKey: accessKey, password: password });
-    await globalClient.connect().catch(error => globalLogger.error("Failed to connect to client: " + error));
+    await globalClient.connect().catch(error => globalLogger.error('Failed to connect to client: ' + error));
 }
 
 /**
@@ -169,7 +168,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
         globalLogger = this.log;
         globalPlatform = this;
         connectAPI(config['serial'], config['access'], config['password']).then(() => {
-            this.log.debug('Finished initializing platform:', this.config.name);
+            this.log.debug('Finished initializing platform:', this.config.platform);
             // MAYBE PLACE THIS OUTSIDE?
             this.api.on('didFinishLaunching', () => {
                 log.debug('Executed didFinishLaunching callback');
@@ -229,18 +228,18 @@ export class CT200Platform implements DynamicPlatformPlugin {
         }
 
         setInterval(() => {
-            globalLogger.info("Executing 1 min getter");
+            globalLogger.info('Executing 1 min getter');
             globalClient.get('/zones/list').then((response) => {
                 processResponse(response);
             });
 
             globalClient.get('/system/sensors/humidity/indoor_h1').then((response) => {
                 processResponse(response);
-            })
+            });
 
             globalClient.get('/gateway/localisation').then((response) => {
                 processResponse(response);
-            })
+            });
 
         }, 10000);
     }
