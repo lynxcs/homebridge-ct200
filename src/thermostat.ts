@@ -1,5 +1,4 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
-
 import { CT200Platform, globalState, processResponse, globalClient } from './platform';
 
 /**
@@ -123,7 +122,7 @@ export class Thermostat {
 
         globalClient.put('/zones/zn' + this.id + '/userMode', commandString).then((response) => {
             if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
-                this.platform.log.error('Failed to set temperature!');
+                this.platform.log.error('Failed to set state!');
             }
         });
     }
