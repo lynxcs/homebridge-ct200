@@ -3,9 +3,6 @@ import { API, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { Thermostat } from './thermostat';
 
-
-// Global Bosch system status
-
 // All the info needed to descripe a Zone
 class Zone {
     id = 1;
@@ -23,8 +20,7 @@ class Zone {
     }
 }
 
-// Info returned by /zones/list
-
+// Global Bosch system status
 class SystemStatus {
     zones: Map<number, Zone> = new Map();
     humidity = 0;
@@ -44,6 +40,8 @@ export function processResponse(response) {
 
     switch (response['id']) {
         case '/zones/list': {
+
+            // Info returned by /zones/list
             interface ResponseZone {
                 id: number;
                 name: string;
@@ -155,17 +153,10 @@ async function connectAPI(serialNumber: number, accessKey: string, password: str
     await globalClient.connect().catch(error => globalLogger.error('Failed to connect to client: ' + error));
 }
 
-/**
- * HomebridgePlatform
- * This class is the main constructor for your plugin, this is where you should
- * parse the user config and discover/register accessories with Homebridge.
- */
 export class CT200Platform implements DynamicPlatformPlugin {
     public readonly Service: typeof Service = this.api.hap.Service;
     public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
-
-    // this is used to track restored cached accessories
-    public readonly accessories: PlatformAccessory[] = [];
+    public readonly accessories: PlatformAccessory[] = []; // Cache accessories
 
     constructor(
         public readonly log: Logger,
@@ -174,6 +165,12 @@ export class CT200Platform implements DynamicPlatformPlugin {
     ) {
         globalLogger = this.log;
         globalPlatform = this;
+
+        if (!config['serial'] || !config['access'] || !config['password'] || !config['zones']) {
+            log.error('Config doesn\'t have needed values!');
+            process.exit(1);
+        }
+
         connectAPI(config['serial'], config['access'], config['password']).then(() => {
             this.log.debug('Finished initializing platform:', this.config.platform);
         });
