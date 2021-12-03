@@ -57,14 +57,27 @@ export class Thermostat {
     }
 
     async getCurrentTemp(): Promise<CharacteristicValue> {
-        return globalState.zones[this.accessory.context.id].currentTemp;
+        const zone = globalState.zones.get(this.id);
+        if (zone) {
+            return zone.currentTemp;
+        } else {
+            this.platform.log.error('Zone undefined while getting current temperature!');
+            throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+        }
     }
 
     async getTargetTemp(): Promise<CharacteristicValue> {
         globalClient.get('/zones/zn' + this.id + '/temperatureHeatingSetpoint').then((response) => {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
-        return globalState.zones[this.id].wantedTemp;
+
+        const zone = globalState.zones.get(this.id);
+        if (zone) {
+            return zone.wantedTemp;
+        } else {
+            this.platform.log.error('Zone undefined while getting target temperature!');
+            throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+        }
     }
 
     async setTargetTemp(value: CharacteristicValue) {
@@ -77,7 +90,13 @@ export class Thermostat {
     }
 
     async getCurrentState(): Promise<CharacteristicValue> {
-        return globalState.zones[this.accessory.context.id].state;
+        const zone = globalState.zones.get(this.id);
+        if (zone) {
+            return zone.state;
+        } else {
+            this.platform.log.error('Zone undefined while getting current state!');
+            throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+        }
     }
 
     async getTargetState(): Promise<CharacteristicValue> {
@@ -85,7 +104,13 @@ export class Thermostat {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
 
-        return globalState.zones[this.id].mode;
+        const zone = globalState.zones.get(this.id);
+        if (zone) {
+            return zone.mode;
+        } else {
+            this.platform.log.error('Zone undefined while getting target state!');
+            throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+        }
     }
 
     async setTargetState(value: CharacteristicValue) {

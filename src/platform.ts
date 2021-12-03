@@ -7,40 +7,29 @@ import { Thermostat } from './thermostat';
 // Global Bosch system status
 
 // All the info needed to descripe a Zone
-interface Zone {
-    id: number;
-    currentTemp: number;
-    wantedTemp: number;
-    state: number;
-    mode: number;
-    name: string;
+class Zone {
+    id = -1;
+    currentTemp = -1;
+    wantedTemp = -1;
+    state = -1;
+    mode = -1;
+    name = 'not initialized';
     accessory: PlatformAccessory;
+
+    constructor(accessory: PlatformAccessory) {
+        this.accessory = accessory;
+        this.id = this.accessory.context.id;
+        this.name = this.accessory.context.name;
+    }
 }
 
 // Info returned by /zones/list
-interface ResponseZone {
-    id: number;
-    name: string;
-    icon: string;
-    program: number;
-    temp: number;
-    status: string;
-}
 
-interface IZone {
-    [id: number]: Zone;
-}
-
-interface IAway {
-    state: boolean;
-    accessory: PlatformAccessory;
-}
-
-interface SystemStatus {
-    zones: IZone;
-    humidity: number;
-    away: IAway;
-    localization: number;
+class SystemStatus {
+    zones: Map<number, Zone> = new Map();
+    humidity = -1;
+    away = true;
+    localization = -1;
 }
 
 export let globalClient: EasyControlClient;
@@ -48,30 +37,44 @@ let globalLogger: Logger;
 export let globalState: SystemStatus;
 let globalPlatform: CT200Platform;
 
+// export function processResponse(response: object) {
 export function processResponse(response) {
     globalLogger.debug('Processing ' + response['id']);
     globalLogger.debug(response);
-    globalLogger.debug('\n');
 
     switch (response['id']) {
-        case '/zone/list': {
-            const responseZones: { string: ResponseZone[] } = response['value'];
-            for (const zone of responseZones.string) {
-                globalState.zones[zone.id].currentTemp = zone.temp;
-                if (zone.status.includes('heat')) {
-                    globalState.zones[zone.id].state = 1; // HEAT
-                } else {
-                    globalState.zones[zone.id].state = 0; // OFF
-                }
-                const thermostat = globalState.zones[zone.id].accessory.getService((globalPlatform.Service.Thermostat));
-                if (thermostat) {
-                    thermostat.updateCharacteristic(globalPlatform.Characteristic.CurrentTemperature,
-                        globalState.zones[zone.id].currentTemp);
-
-                    thermostat.updateCharacteristic(globalPlatform.Characteristic.CurrentHeatingCoolingState,
-                        globalState.zones[zone.id].state);
-                }
+        case '/zones/list': {
+            interface ResponseZone {
+                id: number;
+                name: string;
+                icon: string;
+                program: number;
+                temp: number;
+                status: string;
             }
+
+            response['value'].forEach((zone: ResponseZone) => {
+                const savedZone = globalState.zones.get(zone.id);
+                if (savedZone) {
+                    savedZone.currentTemp = zone.temp;
+                    if (zone.status.includes('heat')) {
+                        savedZone.state = 1;
+                    } else {
+                        savedZone.state = 0;
+                    }
+
+                    const thermostat = savedZone.accessory.getService((globalPlatform.Service.Thermostat));
+                    if (thermostat) {
+                        thermostat.updateCharacteristic(globalPlatform.Characteristic.CurrentTemperature,
+                            savedZone.currentTemp);
+
+                        thermostat.updateCharacteristic(globalPlatform.Characteristic.CurrentHeatingCoolingState,
+                            savedZone.state);
+                    }
+                    globalState.zones.set(zone.id, savedZone);
+                }
+            });
+
             break;
         }
 
@@ -82,61 +85,65 @@ export function processResponse(response) {
                 globalState.localization = 1;
             }
 
-            for (const zone in globalState.zones) {
-                const thermostat = globalState.zones[zone].accessory.getService(globalPlatform.Service.Thermostat);
+            globalState.zones.forEach((zone, id) => {
+                const thermostat = zone.accessory.getService(globalPlatform.Service.Thermostat);
                 if (thermostat) {
                     thermostat.updateCharacteristic(globalPlatform.Characteristic.TemperatureDisplayUnits, globalState.localization);
                 }
-            }
+            });
+
             break;
         }
 
         // TODO Figure out if more than one humidity sensor is present (for each zone?)
         case '/system/sensors/humidity/indoor_h1': {
             globalState.humidity = response['value'];
-            for (const zone in globalState.zones) {
-                const thermostat = globalState.zones[zone].accessory.getService(globalPlatform.Service.Thermostat);
+            globalState.zones.forEach((zone, id) => {
+                const thermostat = zone.accessory.getService(globalPlatform.Service.Thermostat);
                 if (thermostat) {
                     thermostat.updateCharacteristic(globalPlatform.Characteristic.CurrentRelativeHumidity, globalState.humidity);
                 }
-            }
+            });
             break;
         }
 
         case '/system/awayMode/enabled': {
             if (response['value'] === 'false') {
-                globalState.away.state = false;
+                globalState.away = false;
             } else {
-                globalState.away.state = true;
+                globalState.away = true;
             }
-            const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
-            if (modeSwitch) {
-                if (globalState.away.state === true) {
-                    modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 1);
-                } else {
-                    modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 0);
-                }
-            }
+            // const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
+            // if (modeSwitch) {
+            //     if (globalState.away === true) {
+            //         modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 1);
+            //     } else {
+            //         modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 0);
+            //     }
+            // }
             break;
         }
 
         default: {
             const endpoint: string = response['id'];
             const id: number = parseInt(response['id'].replace(/[^0-9]/g, ''), 10);
-
-            const thermostat = globalState.zones[id].accessory.getService(globalPlatform.Service.Thermostat);
-            if (thermostat) {
-                if (endpoint.includes('userMode')) {
-                    if (response['value'] === 'clock') {
-                        globalState.zones[id].mode = 3;
-                    } else {
-                        globalState.zones[id].mode = 1;
+            const savedZone = globalState.zones.get(id);
+            if (savedZone) {
+                const thermostat = savedZone.accessory.getService(globalPlatform.Service.Thermostat);
+                if (thermostat) {
+                    if (endpoint.includes('userMode')) {
+                        if (response['value'] === 'clock') {
+                            savedZone.mode = 3;
+                        } else {
+                            savedZone.mode = 1;
+                        }
+                        thermostat.updateCharacteristic(globalPlatform.Characteristic.TargetHeatingCoolingState, savedZone.mode);
+                    } else if (endpoint.includes('temperatureHeatingSetpoint')) {
+                        savedZone.wantedTemp = response['value'];
+                        thermostat.updateCharacteristic(globalPlatform.Characteristic.TargetTemperature, savedZone.wantedTemp);
                     }
-                    thermostat.updateCharacteristic(globalPlatform.Characteristic.TargetHeatingCoolingState, globalState.zones[id].mode);
-                } else if (endpoint.includes('temperatureHeatingSetpoint')) {
-                    globalState.zones[id].wantedTemp = response['value'];
-                    thermostat.updateCharacteristic(globalPlatform.Characteristic.TargetTemperature, globalState.zones[id].wantedTemp);
                 }
+                globalState.zones.set(id, savedZone);
             }
             break;
         }
@@ -169,12 +176,12 @@ export class CT200Platform implements DynamicPlatformPlugin {
         globalPlatform = this;
         connectAPI(config['serial'], config['access'], config['password']).then(() => {
             this.log.debug('Finished initializing platform:', this.config.platform);
-            // MAYBE PLACE THIS OUTSIDE?
-            this.api.on('didFinishLaunching', () => {
-                log.debug('Executed didFinishLaunching callback');
-                // run the method to discover / register your devices as accessories
-                this.discoverDevices();
-            });
+        });
+
+        this.api.on('didFinishLaunching', () => {
+            log.debug('Executed didFinishLaunching callback');
+            // run the method to discover / register your devices as accessories
+            this.discoverDevices();
         });
     }
 
@@ -185,31 +192,25 @@ export class CT200Platform implements DynamicPlatformPlugin {
 
     discoverDevices() {
 
-        interface configZone {
+        globalState = new SystemStatus();
+
+        interface ConfigZone {
             index: number;
             name: string;
         }
 
-        const configZones: { string: configZone[] } = this.config['zones'];
-        for (const zone of configZones.string) {
+        this.log.error(this.config['zones']);
+        this.config['zones'].forEach((zone: ConfigZone) => {
+            // for (const zone of configZones.string) {
             const uuid = this.api.hap.uuid.generate(zone.index.toString());
             const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
             if (existingAccessory) {
                 this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
+                this.log.info('(with id:', existingAccessory.context.id, ')');
 
-                // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
-                // existingAccessory.context.device = device;
-                // this.api.updatePlatformAccessories([existingAccessory]);
-
-                // create the accessory handler for the restored accessory
-                // this is imported from `platformAccessory.ts`
                 new Thermostat(this, existingAccessory);
-                globalState.zones[zone.index].accessory = existingAccessory;
+                globalState.zones.set(zone.index, new Zone(existingAccessory));
 
-                // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
-                // remove platform accessories when no longer present
-                // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-                // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
             } else {
                 this.log.info('Adding new accessory:', zone.name);
                 const accessory = new this.api.platformAccessory(zone.name, uuid);
@@ -218,21 +219,41 @@ export class CT200Platform implements DynamicPlatformPlugin {
                 accessory.context.name = zone.name;
 
                 new Thermostat(this, accessory);
-                globalState.zones[zone.index].accessory = accessory;
+                globalState.zones.set(zone.index, new Zone(accessory));
 
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
                 this.accessories.push(accessory);
             }
 
-        }
+        });
 
+        // Get initial zone state
+        globalClient.get('/zones/list').then((response) => {
+            processResponse(response);
+        });
+
+        // Get initial humidity
+        globalClient.get('/system/sensors/humidity/indoor_h1').then((response) => {
+            processResponse(response);
+        });
+
+        // Get localization option
+        globalClient.get('/gateway/localisation').then((response) => {
+            processResponse(response);
+        });
+
+        // Refresh zone state every minute
         setInterval(() => {
-            globalLogger.info('Executing 1 min getter');
+            globalLogger.debug('Executing 1 min getter (zones)');
             globalClient.get('/zones/list').then((response) => {
                 processResponse(response);
             });
+        }, 1000 * 60);
 
+        // Refresh humidity and localization every 5 mins
+        setInterval(() => {
+            globalLogger.debug('Executing 5 min getter (localisation and humidity)');
             globalClient.get('/system/sensors/humidity/indoor_h1').then((response) => {
                 processResponse(response);
             });
@@ -240,7 +261,6 @@ export class CT200Platform implements DynamicPlatformPlugin {
             globalClient.get('/gateway/localisation').then((response) => {
                 processResponse(response);
             });
-
-        }, 10000);
+        }, 1000 * 60 * 5);
     }
 }
