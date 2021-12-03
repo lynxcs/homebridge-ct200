@@ -10,7 +10,7 @@ import { Thermostat } from './thermostat';
 class Zone {
     id = 1;
     currentTemp = 0;
-    wantedTemp = 0;
+    wantedTemp = 10;
     state = 0;
     mode = 1;
     name = 'not initialized';
@@ -197,7 +197,6 @@ export class CT200Platform implements DynamicPlatformPlugin {
             name: string;
         }
 
-        this.log.error(this.config['zones']);
         this.config['zones'].forEach((zone: ConfigZone) => {
             const uuid = this.api.hap.uuid.generate(zone.index.toString());
             const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
