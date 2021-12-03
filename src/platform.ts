@@ -203,6 +203,11 @@ export class CT200Platform implements DynamicPlatformPlugin {
             name: string;
         }
 
+        if (!('zones' in this.config) || this.config['zones'].length === 0) {
+            this.log.error('No zones defined!');
+            process.exit(1);
+        }
+
         this.config['zones'].forEach((zone: ConfigZone) => {
             const uuid = this.api.hap.uuid.generate(zone.index.toString());
             const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
