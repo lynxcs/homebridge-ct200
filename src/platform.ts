@@ -180,13 +180,11 @@ export class CT200Platform implements DynamicPlatformPlugin {
 
         this.api.on('didFinishLaunching', () => {
             log.debug('Executed didFinishLaunching callback');
-            // run the method to discover / register your devices as accessories
             this.discoverDevices();
         });
     }
 
     configureAccessory(accessory: PlatformAccessory) {
-        this.log.info('Loading accessory from cache:', accessory.displayName);
         this.accessories.push(accessory);
     }
 
@@ -201,18 +199,15 @@ export class CT200Platform implements DynamicPlatformPlugin {
 
         this.log.error(this.config['zones']);
         this.config['zones'].forEach((zone: ConfigZone) => {
-            // for (const zone of configZones.string) {
             const uuid = this.api.hap.uuid.generate(zone.index.toString());
             const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
             if (existingAccessory) {
-                this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-                this.log.info('(with id:', existingAccessory.context.id, ')');
+                this.log.debug('Restoring thermostat from cache:', existingAccessory.displayName, ' (', existingAccessory.context.id, ')');
 
                 new Thermostat(this, existingAccessory);
                 globalState.zones.set(zone.index, new Zone(existingAccessory));
-
             } else {
-                this.log.info('Adding new accessory:', zone.name);
+                this.log.debug('Adding new thermostat:', zone.name);
                 const accessory = new this.api.platformAccessory(zone.name, uuid);
 
                 accessory.context.id = zone.index;
