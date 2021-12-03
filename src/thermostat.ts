@@ -134,7 +134,7 @@ export class Thermostat {
     }
 
     async setDisplayUnits(value: CharacteristicValue) {
-        this.platform.log.warn('Setting temperature units in Home doesn\'t work! Change in bosch app!');
+        this.platform.log.warn('Setting temperature units to ', value, ' failed! Change in bosch app!');
     }
 
     // This is a global property
