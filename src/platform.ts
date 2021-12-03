@@ -85,7 +85,7 @@ export function processResponse(response) {
                 globalState.localization = 1;
             }
 
-            globalState.zones.forEach((zone, id) => {
+            globalState.zones.forEach((zone) => {
                 const thermostat = zone.accessory.getService(globalPlatform.Service.Thermostat);
                 if (thermostat) {
                     thermostat.updateCharacteristic(globalPlatform.Characteristic.TemperatureDisplayUnits, globalState.localization);
@@ -98,7 +98,7 @@ export function processResponse(response) {
         // TODO Figure out if more than one humidity sensor is present (for each zone?)
         case '/system/sensors/humidity/indoor_h1': {
             globalState.humidity = response['value'];
-            globalState.zones.forEach((zone, id) => {
+            globalState.zones.forEach((zone) => {
                 const thermostat = zone.accessory.getService(globalPlatform.Service.Thermostat);
                 if (thermostat) {
                     thermostat.updateCharacteristic(globalPlatform.Characteristic.CurrentRelativeHumidity, globalState.humidity);
