@@ -8,11 +8,11 @@ import { Thermostat } from './thermostat';
 
 // All the info needed to descripe a Zone
 class Zone {
-    id = -1;
-    currentTemp = -1;
-    wantedTemp = -1;
-    state = -1;
-    mode = -1;
+    id = 1;
+    currentTemp = 0;
+    wantedTemp = 0;
+    state = 0;
+    mode = 1;
     name = 'not initialized';
     accessory: PlatformAccessory;
 
@@ -27,9 +27,9 @@ class Zone {
 
 class SystemStatus {
     zones: Map<number, Zone> = new Map();
-    humidity = -1;
+    humidity = 0;
     away = true;
-    localization = -1;
+    localization = 0;
 }
 
 export let globalClient: EasyControlClient;
