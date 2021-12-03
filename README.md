@@ -5,14 +5,9 @@
 ### Introduction
 This homebridge plugin exposes CT200 status allowing for heater control
 
-This plugin is functional enough for daily use. Might throw a few errors on lower-powered devices. There are still a few features that aren't complete or working, such as: changing between Celsius and Fahrenheit.
+**Note:** When setting heat in the homekit app, "Auto" represent scheduled heating mode and "Heating" represents manual. "Cooling" and "Off" are disabled!
 
-**Another important thing**: When setting heat in the homekit app, "Auto" represent scheduled heating mode and "Heating" represents manual. "Cooling" and "Off" are disabled!
-
-Changing the temperature when set on Auto, only changes the setpoint until the next defined setpoint is reached (same behaviour as in the bosch EasyControl app)
-
-### Prerequisites
-A working bosch CT200, with it's temperature units set to Celsius
+Changing the temperature when set on Auto, only changes the setpoint until the next defined setpoint is reached.
 
 ### Installation
 To install homebridge ct200:
@@ -20,23 +15,29 @@ To install homebridge ct200:
 ```
 $ sudo npm -g i homebridge-ct200
 ```
-- Edit the the `config.json` and add the `ct200` accessory e.g:
+- Configure within Homebridge Config UI X or edit `config.json` manually e.g:
 ```
-"accessories": [
+"platforms": [
     {
-        "accessory": "ct200",
-        "name": "CT200",
-        "access": "ACCESS KEY",
-        "serial": "SERIAL",
+        "access": "ACCESS_KEY",
+        "serial": "SERIAL_KEY",
         "password": "PASSWORD",
-        "zone": 1
+        "zones": [
+            {
+                "index": 1,
+                "name": "NAME1"
+            },
+            {
+                "index": 2,
+                "name": "NAME2"
+            }
+            ... and so on!
+        ],
+        "platform": "CT200"
     }
 ]
 ```
-where `name` is the name that shows up in homekit; `access` is the access key, `serial` is the serial key, both of which can be found in the bosch EasyControl app; `password` is the password used to login (**Can't be longer than 8 characters**, this is a limitation of the bosch-xmpp library, and might be fixed later).
-
-`zone` is Optional and can be use to change which device to read from in Homekit in case you have more devices. **Can't be run more these CT200 accessories in Homebridge in the same time, this is TODO for now**.
-
-**"access" and "serial" must be entered without spaces (e.g "asdasdasd" not "asd asd asd")**
+where `access` is the access key, `serial` is the serial key, both of which can be found in the bosch EasyControl app; `password` is the password used to login (**Can't be longer than 8 characters**, this is a limitation of the bosch-xmpp library, and might be fixed later).
+For each CT200 device you want to control, add a zone, where `index` is the zone id (from 1 to X) and `name` is what will show up in the Home app.
 #### Getting help
 If you need help troubleshooting, create an issue and I'll try to help you fix it.

@@ -1,27 +1,46 @@
 {
-	"name": "homebridge-ct200",
-	"version": "1.1.3",
-	"description": "Homebridge plugin to control Bosch CT200 device",
-	"main": "index.js",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"author": "Domas Kalinauskas",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/lynxcs/homebridge-ct200.git"
-	},
-	"license": "ISC",
-	"keywords": [
-		"homebridge-plugin",
-		"homekit",
-		"bosch",
-		"ct200"
-	],
-	"dependencies": {
-		"bosch-xmpp": "^1.3.0"
-	},
-	"engines": {
-		"homebridge": ">=0.2.0"
-	}
+    "displayName": "Homebridge CT200",
+    "name": "homebridge-ct200",
+    "version": "2.0.2",
+    "description": "Homebridge plugin to control Bosch CT200 smart thermostat.",
+    "license": "MIT",
+    "author": "Domas Kalinauskas",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lynxcs/homebridge-ct200.git"
+    },
+    "bugs": {
+        "url": "https://github.com/lynxcs/homebridge-ct200/issues"
+    },
+    "engines": {
+        "node": ">=14.18.1",
+        "homebridge": ">=1.3.5"
+    },
+    "main": "dist/index.js",
+    "scripts": {
+        "lint": "eslint src/**.ts --max-warnings=0",
+        "watch": "npm run build && npm link && nodemon",
+        "build": "rimraf ./dist && tsc",
+        "prepublishOnly": "npm run lint && npm run build"
+    },
+    "keywords": [
+        "homebridge-plugin",
+        "homekit",
+        "bosch",
+        "ct200"
+    ],
+    "dependencies": {
+        "bosch-xmpp": "^1.3.0"
+    },
+    "devDependencies": {
+        "@types/node": "^16.10.9",
+        "@typescript-eslint/eslint-plugin": "^5.0.0",
+        "@typescript-eslint/parser": "^5.0.0",
+        "eslint": "^8.0.1",
+        "homebridge": "^1.3.5",
+        "nodemon": "^2.0.13",
+        "rimraf": "^3.0.2",
+        "ts-node": "^10.3.0",
+        "typescript": "^4.4.4"
+    }
 }

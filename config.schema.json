@@ -1,0 +1,59 @@
+{
+    "pluginAlias": "CT200",
+    "pluginType": "platform",
+    "singular": true,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "access": {
+                "title": "Access Key",
+                "type": "string",
+                "default": "",
+                "description": "Found in Bosch EasyControl app (16 letters)",
+                "minLength": 16,
+                "maxLength": 16,
+                "required": true
+            },
+            "serial": {
+                "title": "Serial key",
+                "type": "string",
+                "pattern": "^[0-9]*$",
+                "description": "Found in Bosch EasyControl app (9 digits, no dashes).",
+                "default": "",
+                "minLength": 9,
+                "maxLength": 9,
+                "required": true
+            },
+            "password": {
+                "title": "Password",
+                "type": "string",
+                "description": "Bosch account password",
+                "default": "",
+                "required": true
+            },
+            "zones": {
+                "title": "Zones",
+                "type": "array",
+                "items": {
+                    "title": "Zone",
+                    "type": "object",
+                    "properties": {
+                        "index": {
+                            "title": "Zone index",
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1,
+                            "required": true
+                        },
+                        "name": {
+                            "title": "Zone name",
+                            "type": "string",
+                            "default": "Thermostat",
+                            "required": true
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
