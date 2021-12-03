@@ -2,17 +2,15 @@ import { EasyControlClient } from 'bosch-xmpp';
 import { API, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { Thermostat } from './thermostat';
-
-
-// Global Bosch system status
+import { AwaySwitch } from './switch';
 
 // All the info needed to descripe a Zone
 class Zone {
-    id = -1;
-    currentTemp = -1;
-    wantedTemp = -1;
-    state = -1;
-    mode = -1;
+    id = 1;
+    currentTemp = 0;
+    wantedTemp = 10;
+    state = 0;
+    mode = 1;
     name = 'not initialized';
     accessory: PlatformAccessory;
 
@@ -23,13 +21,17 @@ class Zone {
     }
 }
 
-// Info returned by /zones/list
+interface IAway {
+    state: boolean;
+    accessory?: PlatformAccessory;
+}
 
+// Global Bosch system status
 class SystemStatus {
     zones: Map<number, Zone> = new Map();
-    humidity = -1;
-    away = true;
-    localization = -1;
+    humidity = 0;
+    away: IAway = {state: false};
+    localization = 0;
 }
 
 export let globalClient: EasyControlClient;
@@ -44,6 +46,8 @@ export function processResponse(response) {
 
     switch (response['id']) {
         case '/zones/list': {
+
+            // Info returned by /zones/list
             interface ResponseZone {
                 id: number;
                 name: string;
@@ -109,18 +113,21 @@ export function processResponse(response) {
 
         case '/system/awayMode/enabled': {
             if (response['value'] === 'false') {
-                globalState.away = false;
+                globalState.away.state = false;
             } else {
-                globalState.away = true;
+                globalState.away.state = true;
             }
-            // const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
-            // if (modeSwitch) {
-            //     if (globalState.away === true) {
-            //         modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 1);
-            //     } else {
-            //         modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 0);
-            //     }
-            // }
+
+            if (globalState.away.accessory) {
+                const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
+                if (modeSwitch) {
+                    if (globalState.away.state === true) {
+                        modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 1);
+                    } else {
+                        modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 0);
+                    }
+                }
+            }
             break;
         }
 
@@ -155,17 +162,10 @@ async function connectAPI(serialNumber: number, accessKey: string, password: str
     await globalClient.connect().catch(error => globalLogger.error('Failed to connect to client: ' + error));
 }
 
-/**
- * HomebridgePlatform
- * This class is the main constructor for your plugin, this is where you should
- * parse the user config and discover/register accessories with Homebridge.
- */
 export class CT200Platform implements DynamicPlatformPlugin {
     public readonly Service: typeof Service = this.api.hap.Service;
     public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
-
-    // this is used to track restored cached accessories
-    public readonly accessories: PlatformAccessory[] = [];
+    public readonly accessories: PlatformAccessory[] = []; // Cache accessories
 
     constructor(
         public readonly log: Logger,
@@ -174,19 +174,23 @@ export class CT200Platform implements DynamicPlatformPlugin {
     ) {
         globalLogger = this.log;
         globalPlatform = this;
+
+        if (!config['serial'] || !config['access'] || !config['password'] || !config['zones']) {
+            log.error('Config doesn\'t have needed values!');
+            process.exit(1);
+        }
+
         connectAPI(config['serial'], config['access'], config['password']).then(() => {
             this.log.debug('Finished initializing platform:', this.config.platform);
         });
 
         this.api.on('didFinishLaunching', () => {
             log.debug('Executed didFinishLaunching callback');
-            // run the method to discover / register your devices as accessories
             this.discoverDevices();
         });
     }
 
     configureAccessory(accessory: PlatformAccessory) {
-        this.log.info('Loading accessory from cache:', accessory.displayName);
         this.accessories.push(accessory);
     }
 
@@ -199,20 +203,21 @@ export class CT200Platform implements DynamicPlatformPlugin {
             name: string;
         }
 
-        this.log.error(this.config['zones']);
+        if (!('zones' in this.config) || this.config['zones'].length === 0) {
+            this.log.error('No zones defined!');
+            process.exit(1);
+        }
+
         this.config['zones'].forEach((zone: ConfigZone) => {
-            // for (const zone of configZones.string) {
             const uuid = this.api.hap.uuid.generate(zone.index.toString());
             const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
             if (existingAccessory) {
-                this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-                this.log.info('(with id:', existingAccessory.context.id, ')');
+                this.log.debug('Restoring thermostat from cache:', existingAccessory.displayName, ' (', existingAccessory.context.id, ')');
 
                 new Thermostat(this, existingAccessory);
                 globalState.zones.set(zone.index, new Zone(existingAccessory));
-
             } else {
-                this.log.info('Adding new accessory:', zone.name);
+                this.log.debug('Adding new thermostat:', zone.name);
                 const accessory = new this.api.platformAccessory(zone.name, uuid);
 
                 accessory.context.id = zone.index;
@@ -223,10 +228,40 @@ export class CT200Platform implements DynamicPlatformPlugin {
 
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-                this.accessories.push(accessory);
             }
-
         });
+
+        this.accessories.forEach(existingAccessory => {
+            if (!this.config['zones'].find((configAccessory: ConfigZone) => existingAccessory.context.id === configAccessory.index)) {
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+            }
+        });
+
+        // By default, enable away mode switch
+        if (!('away' in this.config) || this.config['away'] === true) {
+            const uuid = this.api.hap.uuid.generate('AWAY');
+            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+            if (existingAccessory) {
+                this.log.debug('Restoring Away switch from cache');
+
+                new AwaySwitch(this, existingAccessory);
+                globalState.away.accessory = existingAccessory;
+            } else {
+                const accessory = new this.api.platformAccessory('AWAY', uuid);
+
+                new AwaySwitch(this, accessory);
+                globalState.away.accessory = existingAccessory;
+
+                // link the accessory to your platform
+                this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+            }
+        } else {
+            const uuid = this.api.hap.uuid.generate('AWAY');
+            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+            if (existingAccessory) {
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+            }
+        }
 
         // Get initial zone state
         globalClient.get('/zones/list').then((response) => {
