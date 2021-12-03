@@ -31,6 +31,13 @@
                 "default": "",
                 "required": true
             },
+            "away": {
+                "title": "Away switch",
+                "type": "boolean",
+                "description": "Show away switch",
+                "default": true,
+                "required": false
+            },
             "zones": {
                 "title": "Zones",
                 "type": "array",

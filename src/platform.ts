@@ -2,6 +2,7 @@ import { EasyControlClient } from 'bosch-xmpp';
 import { API, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { Thermostat } from './thermostat';
+import { AwaySwitch } from './switch';
 
 // All the info needed to descripe a Zone
 class Zone {
@@ -20,11 +21,16 @@ class Zone {
     }
 }
 
+interface IAway {
+    state: boolean;
+    accessory?: PlatformAccessory;
+}
+
 // Global Bosch system status
 class SystemStatus {
     zones: Map<number, Zone> = new Map();
     humidity = 0;
-    away = true;
+    away: IAway = {state: false};
     localization = 0;
 }
 
@@ -107,18 +113,21 @@ export function processResponse(response) {
 
         case '/system/awayMode/enabled': {
             if (response['value'] === 'false') {
-                globalState.away = false;
+                globalState.away.state = false;
             } else {
-                globalState.away = true;
+                globalState.away.state = true;
             }
-            // const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
-            // if (modeSwitch) {
-            //     if (globalState.away === true) {
-            //         modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 1);
-            //     } else {
-            //         modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 0);
-            //     }
-            // }
+
+            if (globalState.away.accessory) {
+                const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
+                if (modeSwitch) {
+                    if (globalState.away.state === true) {
+                        modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 1);
+                    } else {
+                        modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 0);
+                    }
+                }
+            }
             break;
         }
 
@@ -214,10 +223,40 @@ export class CT200Platform implements DynamicPlatformPlugin {
 
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-                this.accessories.push(accessory);
             }
-
         });
+
+        this.accessories.forEach(existingAccessory => {
+            if (!this.config['zones'].find((configAccessory: ConfigZone) => existingAccessory.context.id === configAccessory.index)) {
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+            }
+        });
+
+        // By default, enable away mode switch
+        if (!('away' in this.config) || this.config['away'] === true) {
+            const uuid = this.api.hap.uuid.generate('AWAY');
+            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+            if (existingAccessory) {
+                this.log.debug('Restoring Away switch from cache');
+
+                new AwaySwitch(this, existingAccessory);
+                globalState.away.accessory = existingAccessory;
+            } else {
+                const accessory = new this.api.platformAccessory('AWAY', uuid);
+
+                new AwaySwitch(this, accessory);
+                globalState.away.accessory = existingAccessory;
+
+                // link the accessory to your platform
+                this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+            }
+        } else {
+            const uuid = this.api.hap.uuid.generate('AWAY');
+            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+            if (existingAccessory) {
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+            }
+        }
 
         // Get initial zone state
         globalClient.get('/zones/list').then((response) => {
