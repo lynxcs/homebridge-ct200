@@ -22,7 +22,7 @@ class Zone {
 }
 
 interface IAway {
-    state: boolean;
+    state: number;
     accessory?: PlatformAccessory;
 }
 
@@ -30,7 +30,7 @@ interface IAway {
 class SystemStatus {
     zones: Map<number, Zone> = new Map();
     humidity = 0;
-    away: IAway = {state: false};
+    away: IAway = {state: 0, accessory: undefined};
     localization = 0;
 }
 
@@ -113,19 +113,15 @@ export function processResponse(response) {
 
         case '/system/awayMode/enabled': {
             if (response['value'] === 'false') {
-                globalState.away.state = false;
+                globalState.away.state = 0;
             } else {
-                globalState.away.state = true;
+                globalState.away.state = 1;
             }
 
             if (globalState.away.accessory) {
                 const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
                 if (modeSwitch) {
-                    if (globalState.away.state === true) {
-                        modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 1);
-                    } else {
-                        modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, 0);
-                    }
+                    modeSwitch.updateCharacteristic(globalPlatform.Characteristic.On, globalState.away.state);
                 }
             }
             break;
@@ -250,7 +246,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
                 const accessory = new this.api.platformAccessory('AWAY', uuid);
 
                 new AwaySwitch(this, accessory);
-                globalState.away.accessory = existingAccessory;
+                globalState.away.accessory = accessory;
 
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
