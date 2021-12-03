@@ -49,6 +49,11 @@ export class AwaySwitch {
         globalClient.put('/system/awayMode/enabled', command).then((response) => {
             if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
                 this.platform.log.error('Failed to set away mode!');
+
+                // Update zone temperatures after changing state
+                globalClient.get('/zones/list').then((responseFollowup) => {
+                    processResponse(responseFollowup);
+                });
             }
         });
     }
