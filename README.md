@@ -5,9 +5,9 @@
 ### Introduction
 This homebridge plugin exposes CT200 status allowing for heater control
 
-**Note:** When setting heat in the homekit app, "Auto" represent scheduled heating mode and "Heating" represents manual. "Cooling" and "Off" are disabled!
+**Note:** The thermostat accessory in Home app shows a single button to change the control mode. On is the same as 'Auto' mode in the bosch EasyControl App. Off is the same as 'manual'.
 
-Changing the temperature when set on Auto, only changes the setpoint until the next defined setpoint is reached.
+Changing the temperature when set on 'Auto', only changes the setpoint until the next defined setpoint is reached.
 
 ### Installation
 To install homebridge ct200:
