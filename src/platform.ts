@@ -61,7 +61,10 @@ export function processResponse(response) {
             response['value'].forEach((zone: ResponseZone) => {
                 const savedZone = globalState.zones.get(zone.id);
                 if (savedZone) {
-                    savedZone.currentTemp = zone.temp;
+                    if (zone.temp <= 100) {
+                        savedZone.currentTemp = zone.temp;
+                    }
+
                     if (zone.status.includes('heat')) {
                         savedZone.state = 1;
                     } else {
