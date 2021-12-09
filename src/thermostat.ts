@@ -1,5 +1,6 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { CT200Platform, globalState, processResponse, globalClient } from './platform';
+import { EP_BZ, EP_BZ_MODE, EP_BZ_TARGET_TEMP } from './endpoints';
 
 /**
  * Platform Accessory
@@ -66,7 +67,7 @@ export class Thermostat {
     }
 
     async getTargetTemp(): Promise<CharacteristicValue> {
-        globalClient.get('/zones/zn' + this.id + '/temperatureHeatingSetpoint').then((response) => {
+        globalClient.get(EP_BZ + + this.id + EP_BZ_TARGET_TEMP).then((response) => {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
 
@@ -120,7 +121,7 @@ export class Thermostat {
             commandString += 'manual"}';
         }
 
-        globalClient.put('/zones/zn' + this.id + '/userMode', commandString).then((response) => {
+        globalClient.put(EP_BZ + this.id + EP_BZ_MODE, commandString).then((response) => {
             if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
                 this.platform.log.error('Failed to set state!');
             }

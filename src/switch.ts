@@ -1,5 +1,6 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { CT200Platform, globalState, processResponse, globalClient } from './platform';
+import { EP_AWAY, EP_ZONES } from './endpoints';
 
 /**
  * Platform Accessory
@@ -31,7 +32,7 @@ export class AwaySwitch {
     }
 
     async getAwayStatus(): Promise<CharacteristicValue> {
-        globalClient.get('/system/awayMode/enabled').then((response) => {
+        globalClient.get(EP_AWAY).then((response) => {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
 
@@ -40,13 +41,13 @@ export class AwaySwitch {
 
     async setAwayStatus(value: CharacteristicValue) {
         const command = '{"value":"' + value ? 'true"}' : 'false"}';
-        globalClient.put('/system/awayMode/enabled', command).then((response) => {
+        globalClient.put(EP_AWAY, command).then((response) => {
             if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
                 this.platform.log.error('Failed to set away mode!');
             }
 
             // Update zone temperatures after changing state
-            globalClient.get('/zones/list').then((responseFollowup) => {
+            globalClient.get(EP_ZONES).then((responseFollowup) => {
                 processResponse(responseFollowup);
             });
         });

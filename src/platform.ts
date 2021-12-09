@@ -3,6 +3,7 @@ import { API, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { Thermostat } from './thermostat';
 import { AwaySwitch } from './switch';
+import { EP_ZONES, EP_LOCALIZATION, EP_HUMIDITY, EP_AWAY, EP_BZ_MODE, EP_BZ_TARGET_TEMP } from './endpoints';
 
 // All the info needed to descripe a Zone
 class Zone {
@@ -45,7 +46,7 @@ export function processResponse(response) {
     globalLogger.debug(response);
 
     switch (response['id']) {
-        case '/zones/list': {
+        case EP_ZONES: {
 
             // Info returned by /zones/list
             interface ResponseZone {
@@ -82,7 +83,7 @@ export function processResponse(response) {
             break;
         }
 
-        case '/gateway/localisation': {
+        case EP_LOCALIZATION: {
             if (response['value'] === 'Celsius') {
                 globalState.localization = 0;
             } else {
@@ -100,7 +101,7 @@ export function processResponse(response) {
         }
 
         // TODO Figure out if more than one humidity sensor is present (for each zone?)
-        case '/system/sensors/humidity/indoor_h1': {
+        case EP_HUMIDITY: {
             globalState.humidity = response['value'];
             globalState.zones.forEach((zone) => {
                 const thermostat = zone.accessory.getService(globalPlatform.Service.Thermostat);
@@ -111,7 +112,7 @@ export function processResponse(response) {
             break;
         }
 
-        case '/system/awayMode/enabled': {
+        case EP_AWAY: {
             if (response['value'] === 'false') {
                 globalState.away.state = 0;
             } else {
@@ -134,14 +135,14 @@ export function processResponse(response) {
             if (savedZone) {
                 const thermostat = savedZone.accessory.getService(globalPlatform.Service.Thermostat);
                 if (thermostat) {
-                    if (endpoint.includes('userMode')) {
+                    if (endpoint.includes(EP_BZ_MODE)) {
                         if (response['value'] === 'clock') {
                             savedZone.mode = 3;
                         } else {
                             savedZone.mode = 1;
                         }
                         thermostat.updateCharacteristic(globalPlatform.Characteristic.TargetHeatingCoolingState, savedZone.mode);
-                    } else if (endpoint.includes('temperatureHeatingSetpoint')) {
+                    } else if (endpoint.includes(EP_BZ_TARGET_TEMP)) {
                         savedZone.wantedTemp = response['value'];
                         thermostat.updateCharacteristic(globalPlatform.Characteristic.TargetTemperature, savedZone.wantedTemp);
                     }
@@ -260,24 +261,24 @@ export class CT200Platform implements DynamicPlatformPlugin {
         }
 
         // Get initial zone state
-        globalClient.get('/zones/list').then((response) => {
+        globalClient.get(EP_ZONES).then((response) => {
             processResponse(response);
         });
 
         // Get initial humidity
-        globalClient.get('/system/sensors/humidity/indoor_h1').then((response) => {
+        globalClient.get(EP_HUMIDITY).then((response) => {
             processResponse(response);
         });
 
         // Get localization option
-        globalClient.get('/gateway/localisation').then((response) => {
+        globalClient.get(EP_LOCALIZATION).then((response) => {
             processResponse(response);
         });
 
         // Refresh zone state every minute
         setInterval(() => {
             globalLogger.debug('Executing 1 min getter (zones)');
-            globalClient.get('/zones/list').then((response) => {
+            globalClient.get(EP_ZONES).then((response) => {
                 processResponse(response);
             });
         }, 1000 * 60);
@@ -285,11 +286,11 @@ export class CT200Platform implements DynamicPlatformPlugin {
         // Refresh humidity and localization every 5 mins
         setInterval(() => {
             globalLogger.debug('Executing 5 min getter (localisation and humidity)');
-            globalClient.get('/system/sensors/humidity/indoor_h1').then((response) => {
+            globalClient.get(EP_HUMIDITY).then((response) => {
                 processResponse(response);
             });
 
-            globalClient.get('/gateway/localisation').then((response) => {
+            globalClient.get(EP_LOCALIZATION).then((response) => {
                 processResponse(response);
             });
         }, 1000 * 60 * 5);
