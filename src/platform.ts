@@ -234,7 +234,8 @@ export class CT200Platform implements DynamicPlatformPlugin {
         });
 
         this.accessories.forEach(existingAccessory => {
-            if (!this.config['zones'].find((configAccessory: ConfigZone) => existingAccessory.context.id === configAccessory.index)) {
+            if (!this.config['zones'].find((configAccessory: ConfigZone) => existingAccessory.context.id === configAccessory.index)
+               && existingAccessory.context.id !== undefined) {
                 this.log.debug('Unregistering zone with index ' + existingAccessory.context.id);
                 this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
             }
