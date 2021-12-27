@@ -9,6 +9,9 @@ This homebridge plugin exposes CT200 status allowing for heater control
 
 Changing the temperature when set on 'Auto', only changes the setpoint until the next defined setpoint is reached.
 
+### Compatibility
+While I haven't tested this for myself, the plugin apparently also works with the Buderus TC100 v2 as well as bosch radiator valves, and probably other smart thermostats that make use of boschs' EasyControl API.
+
 ### Installation
 To install homebridge ct200:
 - Install the plugin through Homebridge Config UI X or manually by:
@@ -32,7 +35,6 @@ $ sudo npm -g i homebridge-ct200
                 "index": 2,
                 "name": "NAME2"
             }
-            ... and so on!
         ],
         "platform": "CT200"
     }
