@@ -159,7 +159,10 @@ export function processResponse(response) {
 
 async function connectAPI(serialNumber: number, accessKey: string, password: string) {
     globalClient = EasyControlClient({ serialNumber: serialNumber, accessKey: accessKey, password: password });
-    await globalClient.connect().catch(error => globalLogger.error('Failed to connect to client: ' + error));
+    await globalClient.connect().catch(error => {
+        globalLogger.error('Failed to connect to client: ' + error)
+        process.exit(1);
+    });
 }
 
 export class CT200Platform implements DynamicPlatformPlugin {
@@ -233,6 +236,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
 
         this.accessories.forEach(existingAccessory => {
             if (!this.config['zones'].find((configAccessory: ConfigZone) => existingAccessory.context.id === configAccessory.index)) {
+                this.log.debug('Unregistering zone with index ' + existingAccessory.context.id)
                 this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
             }
         });
@@ -247,6 +251,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
                 new AwaySwitch(this, existingAccessory);
                 globalState.away.accessory = existingAccessory;
             } else {
+                this.log.debug('Creating new Away switch');
                 const accessory = new this.api.platformAccessory('AWAY', uuid);
 
                 new AwaySwitch(this, accessory);
@@ -256,9 +261,11 @@ export class CT200Platform implements DynamicPlatformPlugin {
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
             }
         } else {
+            this.log.debug('Away switch disabled');
             const uuid = this.api.hap.uuid.generate('AWAY');
             const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
             if (existingAccessory) {
+                this.log.debug('Unregistering existing away switch');
                 this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
             }
         }
@@ -281,7 +288,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
         // Refresh zone state every 2 minutes
         // TODO Make this customizable
         setInterval(() => {
-            globalLogger.debug('Executing 2 min getter (zones)');
+            globalLogger.debug('Updating zone status');
             globalClient.get(EP_ZONES).then((response) => {
                 processResponse(response);
             });
@@ -290,7 +297,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
         // Refresh humidity and localization every 10 mins
         // TODO Make this customizable
         setInterval(() => {
-            globalLogger.debug('Executing 10 min getter (localisation and humidity)');
+            globalLogger.debug('Updating localization and humidity status');
             globalClient.get(EP_HUMIDITY).then((response) => {
                 processResponse(response);
             });
