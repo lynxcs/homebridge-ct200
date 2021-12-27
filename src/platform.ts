@@ -281,7 +281,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
         // Refresh zone state every 2 minutes
         // TODO Make this customizable
         setInterval(() => {
-            globalLogger.debug('Executing 1 min getter (zones)');
+            globalLogger.debug('Executing 2 min getter (zones)');
             globalClient.get(EP_ZONES).then((response) => {
                 processResponse(response);
             });
@@ -290,7 +290,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
         // Refresh humidity and localization every 10 mins
         // TODO Make this customizable
         setInterval(() => {
-            globalLogger.debug('Executing 5 min getter (localisation and humidity)');
+            globalLogger.debug('Executing 10 min getter (localisation and humidity)');
             globalClient.get(EP_HUMIDITY).then((response) => {
                 processResponse(response);
             });
