@@ -1,6 +1,6 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { CT200Platform, globalState, processResponse, globalClient } from './platform';
-import { EP_BZ, EP_BZ_MODE, EP_BZ_TARGET_TEMP } from './endpoints';
+import { EP_BZ, EP_BZ_MODE, EP_BZ_TARGET_TEMP, EP_BZ_MANUAL_TEMP } from './endpoints';
 
 /**
  * Platform Accessory
@@ -67,7 +67,7 @@ export class Thermostat {
     }
 
     async getTargetTemp(): Promise<CharacteristicValue> {
-        globalClient.get(EP_BZ + + this.id + EP_BZ_TARGET_TEMP).then((response) => {
+        globalClient.get(EP_BZ + this.id + EP_BZ_TARGET_TEMP).then((response) => {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
 
@@ -82,7 +82,8 @@ export class Thermostat {
 
     async setTargetTemp(value: CharacteristicValue) {
         const command: string = '{"value":' + value + '}';
-        globalClient.put('/zones/zn' + this.id + '/manualTemperatureHeating', command).then((response) => {
+        // TODO Investigate (this could also be EP_BZ_TARGET_TEMP?)
+        globalClient.put(EP_BZ + this.id + EP_BZ_MANUAL_TEMP, command).then((response) => {
             if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
                 this.platform.log.error('Failed to set temperature!');
             }
@@ -100,7 +101,7 @@ export class Thermostat {
     }
 
     async getTargetState(): Promise<CharacteristicValue> {
-        globalClient.get('/zones/zn' + this.id + '/userMode').then((response) => {
+        globalClient.get(EP_BZ + this.id + EP_BZ_MODE).then((response) => {
             processResponse(JSON.parse(JSON.stringify(response)));
         });
 
@@ -134,7 +135,7 @@ export class Thermostat {
     }
 
     async setDisplayUnits(value: CharacteristicValue) {
-        this.platform.log.warn('Setting temperature units to ', value, ' failed! Change in bosch app!');
+        this.platform.log.warn('Setting temperature units to ' + value + ' failed! Change in bosch app!');
     }
 
     // This is a global property

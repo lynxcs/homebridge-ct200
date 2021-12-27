@@ -5,7 +5,7 @@ import { Thermostat } from './thermostat';
 import { AwaySwitch } from './switch';
 import { EP_ZONES, EP_LOCALIZATION, EP_HUMIDITY, EP_AWAY, EP_BZ_MODE, EP_BZ_TARGET_TEMP } from './endpoints';
 
-// All the info needed to descripe a Zone
+// All the info needed to describe a Zone
 class Zone {
     id = 1;
     currentTemp = 0;
@@ -40,7 +40,6 @@ let globalLogger: Logger;
 export let globalState: SystemStatus;
 let globalPlatform: CT200Platform;
 
-// export function processResponse(response: object) {
 export function processResponse(response) {
     globalLogger.debug('Processing ' + response['id']);
     globalLogger.debug(response);
@@ -160,7 +159,7 @@ export function processResponse(response) {
 async function connectAPI(serialNumber: number, accessKey: string, password: string) {
     globalClient = EasyControlClient({ serialNumber: serialNumber, accessKey: accessKey, password: password });
     await globalClient.connect().catch(error => {
-        globalLogger.error('Failed to connect to client: ' + error)
+        globalLogger.error('Failed to connect to client: ' + error);
         process.exit(1);
     });
 }
@@ -236,7 +235,7 @@ export class CT200Platform implements DynamicPlatformPlugin {
 
         this.accessories.forEach(existingAccessory => {
             if (!this.config['zones'].find((configAccessory: ConfigZone) => existingAccessory.context.id === configAccessory.index)) {
-                this.log.debug('Unregistering zone with index ' + existingAccessory.context.id)
+                this.log.debug('Unregistering zone with index ' + existingAccessory.context.id);
                 this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
             }
         });

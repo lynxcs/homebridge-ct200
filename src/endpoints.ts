@@ -18,5 +18,8 @@ export const EP_BZ = '/zones/zn';
 // Target temperature get/set endpoint
 export const EP_BZ_TARGET_TEMP = '/temperatureHeatingSetpoint';
 
+// Target temperature
+export const EP_BZ_MANUAL_TEMP = '/manualTemperatureHeating';
+
 // Heating mode (auto/manual) get/set endpoint
 export const EP_BZ_MODE = '/userMode';
