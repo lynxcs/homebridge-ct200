@@ -1,9 +1,9 @@
-import { EasyControlClient } from 'bosch-xmpp';
 import { API, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { Thermostat } from './thermostat';
 import { AwaySwitch } from './switch';
 import { EP_ZONES, EP_LOCALIZATION, EP_HUMIDITY, EP_AWAY, EP_BZ_MODE, EP_BZ_TARGET_TEMP } from './endpoints';
+import { connectAPI, getEndpoint } from './client';
 
 // All the info needed to describe a Zone
 class Zone {
@@ -35,18 +35,15 @@ class SystemStatus {
     localization = 0;
 }
 
-export let globalClient: EasyControlClient;
-let globalLogger: Logger;
 export let globalState: SystemStatus;
+export let globalLogger: Logger;
 let globalPlatform: CT200Platform;
 
 export function processResponse(response) {
     globalLogger.debug('Processing ' + response['id']);
-    globalLogger.debug(response);
 
     switch (response['id']) {
         case EP_ZONES: {
-
             // Info returned by /zones/list
             interface ResponseZone {
                 id: number;
@@ -60,15 +57,8 @@ export function processResponse(response) {
             response['value'].forEach((zone: ResponseZone) => {
                 const savedZone = globalState.zones.get(zone.id);
                 if (savedZone) {
-                    if (zone.temp <= 100) {
-                        savedZone.currentTemp = zone.temp;
-                    }
-
-                    if (zone.status.includes('heat')) {
-                        savedZone.state = 1;
-                    } else {
-                        savedZone.state = 0;
-                    }
+                    savedZone.currentTemp = zone.temp <= 100 ? zone.temp : savedZone.currentTemp;
+                    savedZone.state = zone.status.includes('heat') ? 1 : 0;
 
                     const thermostat = savedZone.accessory.getService((globalPlatform.Service.Thermostat));
                     if (thermostat) {
@@ -86,12 +76,7 @@ export function processResponse(response) {
         }
 
         case EP_LOCALIZATION: {
-            if (response['value'] === 'Celsius') {
-                globalState.localization = 0;
-            } else {
-                globalState.localization = 1;
-            }
-
+            globalState.localization = response['value'] === 'Celsius' ? 0 : 1;
             globalState.zones.forEach((zone) => {
                 const thermostat = zone.accessory.getService(globalPlatform.Service.Thermostat);
                 if (thermostat) {
@@ -102,7 +87,6 @@ export function processResponse(response) {
             break;
         }
 
-        // TODO Figure out if more than one humidity sensor is present (for each zone?)
         case EP_HUMIDITY: {
             globalState.humidity = response['value'];
             globalState.zones.forEach((zone) => {
@@ -115,12 +99,7 @@ export function processResponse(response) {
         }
 
         case EP_AWAY: {
-            if (response['value'] === 'false') {
-                globalState.away.state = 0;
-            } else {
-                globalState.away.state = 1;
-            }
-
+            globalState.away.state = response['value'] === 'false' ? 0 : 1;
             if (globalState.away.accessory) {
                 const modeSwitch = globalState.away.accessory.getService(globalPlatform.Service.Switch);
                 if (modeSwitch) {
@@ -156,14 +135,6 @@ export function processResponse(response) {
     }
 }
 
-async function connectAPI(serialNumber: number, accessKey: string, password: string) {
-    globalClient = EasyControlClient({ serialNumber: serialNumber, accessKey: accessKey, password: password });
-    await globalClient.connect().catch(error => {
-        globalLogger.error('Failed to connect to client: ' + error);
-        process.exit(1);
-    });
-}
-
 export class CT200Platform implements DynamicPlatformPlugin {
     public readonly Service: typeof Service = this.api.hap.Service;
     public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
@@ -182,13 +153,12 @@ export class CT200Platform implements DynamicPlatformPlugin {
             process.exit(1);
         }
 
-        connectAPI(config['serial'], config['access'], config['password']).then(() => {
-            this.log.debug('Finished initializing platform:', this.config.platform);
-        });
-
         this.api.on('didFinishLaunching', () => {
             log.debug('Executed didFinishLaunching callback');
-            this.discoverDevices();
+            connectAPI(config['serial'], config['access'], config['password']).then(() => {
+                this.log.debug('Finished initializing platform:', this.config.platform);
+                this.discoverDevices();
+            });
         });
     }
 
@@ -220,15 +190,13 @@ export class CT200Platform implements DynamicPlatformPlugin {
                 globalState.zones.set(zone.index, new Zone(existingAccessory));
             } else {
                 this.log.debug('Adding new thermostat:', zone.name);
-                const accessory = new this.api.platformAccessory(zone.name, uuid);
+                const accessory = new this.api.platformAccessory(zone.name, uuid, this.api.hap.Categories.THERMOSTAT);
 
                 accessory.context.id = zone.index;
                 accessory.context.name = zone.name;
 
                 new Thermostat(this, accessory);
                 globalState.zones.set(zone.index, new Zone(accessory));
-
-                // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
             }
         });
@@ -242,69 +210,59 @@ export class CT200Platform implements DynamicPlatformPlugin {
         });
 
         // By default, enable away mode switch
+        const awayUUID = this.api.hap.uuid.generate('AWAY');
+        const existingAway = this.accessories.find(accessory => accessory.UUID === awayUUID);
         if (!('away' in this.config) || this.config['away'] === true) {
-            const uuid = this.api.hap.uuid.generate('AWAY');
-            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
-            if (existingAccessory) {
+            if (existingAway) {
                 this.log.debug('Restoring Away switch from cache');
-
-                new AwaySwitch(this, existingAccessory);
-                globalState.away.accessory = existingAccessory;
+                new AwaySwitch(this, existingAway);
+                globalState.away.accessory = existingAway;
             } else {
                 this.log.debug('Creating new Away switch');
-                const accessory = new this.api.platformAccessory('AWAY', uuid);
+                const accessory = new this.api.platformAccessory('AWAY', awayUUID, this.api.hap.Categories.SWITCH);
 
                 new AwaySwitch(this, accessory);
                 globalState.away.accessory = accessory;
-
-                // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
             }
         } else {
             this.log.debug('Away switch disabled');
-            const uuid = this.api.hap.uuid.generate('AWAY');
-            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
-            if (existingAccessory) {
+            if (existingAway) {
                 this.log.debug('Unregistering existing away switch');
-                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAway]);
             }
         }
 
         // Get initial zone state
-        globalClient.get(EP_ZONES).then((response) => {
-            processResponse(response);
-        });
+        getEndpoint(EP_ZONES);
 
         // Get initial humidity
-        globalClient.get(EP_HUMIDITY).then((response) => {
-            processResponse(response);
-        });
+        getEndpoint(EP_HUMIDITY);
 
         // Get localization option
-        globalClient.get(EP_LOCALIZATION).then((response) => {
-            processResponse(response);
-        });
+        getEndpoint(EP_LOCALIZATION);
 
-        // Refresh zone state every 2 minutes
-        // TODO Make this customizable
+        // Configure zone info refresh
+        let zoneInterval: number = 'zoneInterval' in this.config ? this.config['zoneInterval'] : 2;
+        if (zoneInterval < 1) {
+            this.log.warn('Zone refresh interval can\'t be less than 1! Setting to 1');
+            zoneInterval = 1;
+        }
         setInterval(() => {
             globalLogger.debug('Updating zone status');
-            globalClient.get(EP_ZONES).then((response) => {
-                processResponse(response);
-            });
-        }, 1000 * 60 * 2);
+            getEndpoint(EP_ZONES);
+        }, 1000 * 60 * zoneInterval);
 
-        // Refresh humidity and localization every 10 mins
-        // TODO Make this customizable
+        // Configure humidity and localization refresh
+        let auxInterval: number = 'auxInterval' in this.config ? this.config['auxInterval'] : 5;
+        if (auxInterval < 1) {
+            this.log.warn('Auxiliary refresh interval can\'t be less than 1! Setting to 1');
+            auxInterval = 1;
+        }
         setInterval(() => {
-            globalLogger.debug('Updating localization and humidity status');
-            globalClient.get(EP_HUMIDITY).then((response) => {
-                processResponse(response);
-            });
-
-            globalClient.get(EP_LOCALIZATION).then((response) => {
-                processResponse(response);
-            });
-        }, 1000 * 60 * 10);
+            globalLogger.debug('Updating humidity and localization status');
+            getEndpoint(EP_HUMIDITY);
+            getEndpoint(EP_LOCALIZATION);
+        }, 1000 * 60 * auxInterval);
     }
 }

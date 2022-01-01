@@ -1,6 +1,7 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { CT200Platform, globalState, processResponse, globalClient } from './platform';
+import { CT200Platform, globalState } from './platform';
 import { EP_BZ, EP_BZ_MODE, EP_BZ_TARGET_TEMP, EP_BZ_MANUAL_TEMP } from './endpoints';
+import { getEndpoint, setEndpoint} from './client';
 
 /**
  * Platform Accessory
@@ -67,9 +68,7 @@ export class Thermostat {
     }
 
     async getTargetTemp(): Promise<CharacteristicValue> {
-        globalClient.get(EP_BZ + this.id + EP_BZ_TARGET_TEMP).then((response) => {
-            processResponse(JSON.parse(JSON.stringify(response)));
-        });
+        getEndpoint(EP_BZ + this.id + EP_BZ_TARGET_TEMP);
 
         const zone = globalState.zones.get(this.id);
         if (zone) {
@@ -81,10 +80,8 @@ export class Thermostat {
     }
 
     async setTargetTemp(value: CharacteristicValue) {
-        const command: string = '{"value":' + value + '}';
-        // TODO Investigate (this could also be EP_BZ_TARGET_TEMP?)
-        globalClient.put(EP_BZ + this.id + EP_BZ_MANUAL_TEMP, command).then((response) => {
-            if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
+        setEndpoint(EP_BZ + this.id + EP_BZ_MANUAL_TEMP, String(value)).then(response => {
+            if (response['status'] !== 'ok') {
                 this.platform.log.error('Failed to set temperature!');
             }
         });
@@ -101,9 +98,7 @@ export class Thermostat {
     }
 
     async getTargetState(): Promise<CharacteristicValue> {
-        globalClient.get(EP_BZ + this.id + EP_BZ_MODE).then((response) => {
-            processResponse(JSON.parse(JSON.stringify(response)));
-        });
+        getEndpoint(EP_BZ + this.id + EP_BZ_MODE);
 
         const zone = globalState.zones.get(this.id);
         if (zone) {
@@ -115,15 +110,11 @@ export class Thermostat {
     }
 
     async setTargetState(value: CharacteristicValue) {
-        let commandString = '{"value":"';
-        if (value as number === 1) {
-            commandString += 'clock"}';
-        } else {
-            commandString += 'manual"}';
-        }
-
-        globalClient.put(EP_BZ + this.id + EP_BZ_MODE, commandString).then((response) => {
-            if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
+        setEndpoint(EP_BZ + this.id + EP_BZ_MODE, value === 3 ? '"clock"' : '"manual"').then(response => {
+            if (response['status'] === 'ok') {
+                // Update value when state is modified
+                getEndpoint(EP_BZ + this.id + EP_BZ_TARGET_TEMP);
+            } else {
                 this.platform.log.error('Failed to set state!');
             }
         });
@@ -142,5 +133,4 @@ export class Thermostat {
     async getRelativeHumidity(): Promise<CharacteristicValue> {
         return globalState.humidity;
     }
-
 }

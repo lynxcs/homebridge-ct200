@@ -1,6 +1,7 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
-import { CT200Platform, globalState, processResponse, globalClient } from './platform';
-import { EP_AWAY, EP_ZONES } from './endpoints';
+import { CT200Platform, globalState } from './platform';
+import { EP_AWAY, EP_BZ, EP_BZ_TARGET_TEMP } from './endpoints';
+import { getEndpoint, setEndpoint} from './client';
 
 /**
  * Platform Accessory
@@ -32,24 +33,21 @@ export class AwaySwitch {
     }
 
     async getAwayStatus(): Promise<CharacteristicValue> {
-        globalClient.get(EP_AWAY).then((response) => {
-            processResponse(JSON.parse(JSON.stringify(response)));
-        });
-
+        getEndpoint(EP_AWAY);
         return globalState.away.state;
     }
 
     async setAwayStatus(value: CharacteristicValue) {
-        const command = '{"value":"' + value ? 'true"}' : 'false"}';
-        globalClient.put(EP_AWAY, command).then((response) => {
-            if (JSON.parse(JSON.stringify(response))['status'] !== 'ok') {
+        const command = value ? '"true"' : '"false"';
+        setEndpoint(EP_AWAY, command).then(response => {
+            if (response['status'] === 'ok') {
+                // Update zone temperatures after changing state
+                globalState.zones.forEach((zone) => {
+                    getEndpoint(EP_BZ + zone.id + EP_BZ_TARGET_TEMP);
+                });
+            } else {
                 this.platform.log.error('Failed to set away mode!');
             }
-
-            // Update zone temperatures after changing state
-            globalClient.get(EP_ZONES).then((responseFollowup) => {
-                processResponse(responseFollowup);
-            });
         });
     }
 }

@@ -25,7 +25,6 @@ $ sudo npm -g i homebridge-ct200
         "access": "ACCESS_KEY",
         "serial": "SERIAL_KEY",
         "password": "PASSWORD",
-        "away": true,
         "zones": [
             {
                 "index": 1,
@@ -40,8 +39,17 @@ $ sudo npm -g i homebridge-ct200
     }
 ]
 ```
-where `access` is the access key, `serial` is the serial key, both of which can be found in the bosch EasyControl app; `password` is the password used to login (**Can't be longer than 8 characters**, this is a limitation of the bosch-xmpp library, and might be fixed later).
-`away` is optional (default: true), and if set to false, removes the `Away` mode switch.
-For each CT200 device you want to control, add a zone, where `index` is the zone id (from 1 to X) and `name` is what will show up in the Home app.
+#### Configuration settings
+- `access` is the access key (found in bosch EasyControl app)
+- `serial` is the serial key (found in bosch EasyControl app)
+- `password` is the password used to login.
+For each device you want to control, add a zone, where:
+- `index` is the zone id (from 1 to X)
+- `name` is what will show up in the Home app.
+
+##### Optional settings
+- `away` if set to false, removes the `Away` mode switch. (default: true)
+- `zoneInterval` how often to query all zones (in minutes, default: 2)
+- `auxInterval` how often to refresh humidity and localization (in minutes, default: 5)
 #### Getting help
 If you need help troubleshooting, create an issue and I'll try to help you fix it.

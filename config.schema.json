@@ -38,6 +38,22 @@
                 "default": true,
                 "required": false
             },
+            "zoneInterval": {
+                "title": "Zone interval",
+                "type": "integer",
+                "description": "How often to query zone info (minutes)",
+                "default": 2,
+                "minimum": 1,
+                "required": false
+            },
+            "auxInterval": {
+                "title": "Auxiliary interval",
+                "type": "integer",
+                "description": "How often to query humidity and localization info (minutes)",
+                "default": 5,
+                "minimum": 1,
+                "required": false
+            },
             "zones": {
                 "title": "Zones",
                 "type": "array",
