@@ -1,7 +1,7 @@
 {
     "displayName": "Homebridge CT200",
     "name": "homebridge-ct200",
-    "version": "2.1.6",
+    "version": "2.2.0",
     "description": "Homebridge plugin to control Bosch CT200 smart thermostat.",
     "license": "MIT",
     "author": "Domas Kalinauskas",
