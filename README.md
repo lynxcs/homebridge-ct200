@@ -51,5 +51,10 @@ For each device you want to control, add a zone, where:
 - `away` if set to false, removes the `Away` mode switch. (default: true)
 - `zoneInterval` how often to query all zones (in minutes, default: 2)
 - `auxInterval` how often to refresh humidity and localization (in minutes, default: 5)
+
+#### Troubleshooting
+List of problems you might encounter and how to fix them
+- **"SyntaxError ... Double-check login details!"** If you encounter this error, then most likely you are using the wrong password. You need to set and use the password that is in 'Settings' -> 'Personal' -> 'Change Password', not the BOSCH ID password. More details [here](https://github.com/lynxcs/homebridge-ct200/issues/22).
+
 #### Getting help
 If you need help troubleshooting, create an issue and I'll try to help you fix it.
