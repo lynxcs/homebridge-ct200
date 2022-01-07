@@ -30,11 +30,19 @@ export class Thermostat {
         this.id = this.accessory.context.id;
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature) // Global
-            .onGet(this.getCurrentTemp.bind(this));
+            .onGet(this.getCurrentTemp.bind(this))
+            .setProps({
+                minValue: 0,
+                maxValue: 100,
+            });
 
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature) // Per device
             .onGet(this.getTargetTemp.bind(this))
-            .onSet(this.setTargetTemp.bind(this));
+            .onSet(this.setTargetTemp.bind(this))
+            .setProps({
+                minValue: 0,
+                maxValue: 100,
+            });
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState) // Global
             .onGet(this.getCurrentState.bind(this));
