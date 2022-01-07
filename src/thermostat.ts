@@ -32,16 +32,14 @@ export class Thermostat {
         this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature) // Global
             .onGet(this.getCurrentTemp.bind(this))
             .setProps({
-                minValue: 0,
-                maxValue: 100,
+                minValue: 5,
             });
 
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature) // Per device
             .onGet(this.getTargetTemp.bind(this))
             .onSet(this.setTargetTemp.bind(this))
             .setProps({
-                minValue: 0,
-                maxValue: 100,
+                minValue: 5,
             });
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState) // Global
