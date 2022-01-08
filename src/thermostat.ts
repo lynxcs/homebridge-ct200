@@ -35,8 +35,9 @@ export class Thermostat {
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature) // Per device
             .onGet(this.getTargetTemp.bind(this))
             .onSet(this.setTargetTemp.bind(this))
-            .setProps({
+            .setProps({ // TODO This could potentially break for users using fahrenheit! (More testing is required)
                 minValue: 5,
+                maxValue: 30,
             });
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState) // Global
