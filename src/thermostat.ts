@@ -84,7 +84,10 @@ export class Thermostat {
     }
 
     async setTargetTemp(value: CharacteristicValue) {
-        setEndpoint(EP_BZ + this.id + EP_BZ_MANUAL_TEMP, String(value)).then(response => {
+        // API only allows changing in steps of 0.5
+        // TODO Query step size from API instead of hardcoding value
+        const nearestHalfDecimal = Math.round(value as number / 0.5) * 0.5;
+        setEndpoint(EP_BZ + this.id + EP_BZ_MANUAL_TEMP, String(nearestHalfDecimal)).then(response => {
             if (response['status'] !== 'ok') {
                 this.platform.log.error('Failed to set temperature!');
             }
