@@ -88,7 +88,9 @@ export class Thermostat {
         // TODO Query step size from API instead of hardcoding value
         const nearestHalfDecimal = Math.round(value as number / 0.5) * 0.5;
         setEndpoint(EP_BZ + this.id + EP_BZ_MANUAL_TEMP, String(nearestHalfDecimal)).then(response => {
-            if (response['status'] !== 'ok') {
+            if (response === undefined) {
+                this.platform.log.error('Received invalid response when setting temperature!');
+            } else if (response['status'] !== 'ok') {
                 this.platform.log.error('Failed to set temperature!');
             }
         });
@@ -118,7 +120,9 @@ export class Thermostat {
 
     async setTargetState(value: CharacteristicValue) {
         setEndpoint(EP_BZ + this.id + EP_BZ_MODE, value === 3 ? '"clock"' : '"manual"').then(response => {
-            if (response['status'] === 'ok') {
+            if (response === undefined) {
+                this.platform.log.error('Received invalid response when setting state!');
+            } else if (response['status'] === 'ok') {
                 // Update value when state is modified
                 getEndpoint(EP_BZ + this.id + EP_BZ_TARGET_TEMP);
             } else {
