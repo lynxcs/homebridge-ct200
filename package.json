@@ -30,7 +30,7 @@
         "ct200"
     ],
     "dependencies": {
-        "bosch-xmpp": "^1.3.0"
+        "bosch-xmpp": "^1.4.0"
     },
     "devDependencies": {
         "@types/node": "^16.10.9",
