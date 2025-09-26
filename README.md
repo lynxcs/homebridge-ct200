@@ -1,3 +1,5 @@
+# THIS PLUGIN IS NOT MAINTAINED ANYMORE, AND HOMEBRIDGE 2.0 SUPPORT IS NOT PLANNED.
+
 # Homebridge CT200
 
 ## Homebridge plugin for Bosch Easycontrol CT200
